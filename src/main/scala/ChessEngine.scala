@@ -130,6 +130,20 @@ case class RookMove(piece:Rook, squareFrom:Int, squareTo:Int) extends ChessMove 
 
 case class KingMove(piece:King, squareFrom:Int, squareTo:Int) extends ChessMove 
 
+class Memoize1[-D,+C](f: D => C) extends (D => C) {
+  private[this] val cache = scala.collection.mutable.HashMap[D,C]()
+  def apply(a:D):C = {
+    if (cache.contains(a))
+      cache(a)
+    else {
+      val b = f(a)
+      cache += ((a, b))
+      b
+    }
+  }
+}
+
+
 object Position {
   def bbFromAlgSeq(posList:Seq[String]) = BitBoard.fromSeqOfBits(posList.map(Square.fromAlgebraic _))
   def starting =
@@ -221,6 +235,9 @@ class Position(val bbWhiteKnight:Long,
   lazy val rot45 = bbAll.rotate45
   lazy val rot135 = bbAll.rotate135
 
+  // this is cached - used for move ordering
+  var value:PositionValue = PositionValue.min
+  var valueDepth = -1
 
   def rankAdd(c:SideColor, d:Int) = c match {
     case White => d
@@ -469,8 +486,7 @@ class Position(val bbWhiteKnight:Long,
     leftCapturesNormal ++ rightCapturesNormal ++ leftCapturesPromotion ++ rightCapturesPromotion
   }
 
-
-  def allMoves = {
+  lazy val allMoves = {
     val bishopMoves =
       for (pos <- bbPiece(Bishop(turn)).listOfSetBits;
            candidate <- Seq(BitBoard.diag45Movement(pos, rot45), BitBoard.diag135Movement(pos,rot135));
@@ -526,9 +542,13 @@ class Position(val bbWhiteKnight:Long,
   def makeLegalMove(move:ChessMove) =
     if (isMoveLegal(move)) Some(makeMove(move)) else None
 
+  // the real reason for this isn't that makeMove is slow, but rather that there's cached
+  // lazy val's out there that gets lost if you recompute the position twice.
+  // ultimately, much of this caching should be global, as opposed to contained here (TODO)
+  val makeMove = new Memoize1(makeMovePreOptimized _)
 
   // does not check for legality
-  def makeMove(move:ChessMove) = {
+  def makeMovePreOptimized(move:ChessMove) = {
     val from = move.squareFrom
     val to = move.squareTo
     val p = move.piece
@@ -579,9 +599,14 @@ class Position(val bbWhiteKnight:Long,
     !makeMove(move).isKingInCheck(turn)
   }
 
-  def legalMoves = allMoves.filter(isMoveLegal(_))
+  lazy val legalMoves = allMoves.filter(isMoveLegal(_))
 
+  //lazy val influenceCount = 5
+  //lazy val influenceCountOpp = 5
 
+  lazy val influenceCount = allMoves.map(_.squareTo).distinct.length
+  lazy val influenceCountOpp = setTurn(Opp(turn)).allMoves.map(_.squareTo).distinct.length
+    
   override def toString = {
     val pieces =
       for (rank <- 7.to(0,-1);

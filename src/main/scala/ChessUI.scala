@@ -3,7 +3,7 @@ import Square.fromInt
 import scala.swing.event.ActionEvent
 import javax.swing.ImageIcon
 import javax.swing.UIManager
-
+import akka.actor.Actor
 
 trait ChessIconSet {
   def apply(p:Piece,squareColor:SideColor):String
@@ -15,6 +15,7 @@ trait ChessClock {
 
 trait ChessPlayer {
   def position:Position
+  def color:SideColor
   def nextMove:ChessMove
   def makeMove(m:ChessMove):Unit
 }
@@ -49,13 +50,13 @@ class ChessBoardPanel extends GridPanel(8,8) {
   def selectedCell = _selectedCell
   def selectedCell_=(s:Option[Int]):Unit = {
     println(board.toString)
-    board.legalMoves.foreach(println(_))
+    // board.legalMoves.foreach(println(_))
     _selectedCell match {
       case Some(ps) => cell(ps).selected = false
       case None =>
     }
     _selectedCell = s
-    println(_selectedCell.toString)
+    // println(_selectedCell.toString)
   }
 
   def setupCells = {
@@ -83,12 +84,24 @@ class ChessBoardPanel extends GridPanel(8,8) {
   }
 
   // returns true if move is made
-  def makeMove(from:Int, to:Int) = {
+  def makeMove(from:Int, to:Int):Boolean = {
     val newB = board.makeLegalMove(from, to, askForPromotion _)
     newB match {
       case Some(b) => { board = b; true }
       case None => false
     }
+  }
+
+  // for computer moves
+  def makeMove(m:ChessMove) = {
+    board = board.makeMove(m)
+    selectedCell = None
+  }
+
+  def getComputerMove:ChessMove = {
+    val ai = new ChessAI
+    ai.position = board
+    ai.nextMove
   }
 
   reactions += {
@@ -107,10 +120,32 @@ class ChessBoardPanel extends GridPanel(8,8) {
   setupCells
 }
 
+
+
+
 class ChessGamePanel(val chessboard:ChessBoardPanel) extends BoxPanel(Orientation.Vertical) {
   contents += new FlowPanel {
-    contents += new Button("Some silly button")
-    contents += new Button("Another silly button")
+    contents += Button("Make computer move") {
+      SwingGeneralContractor.doOneOff {
+        val m = chessboard.getComputerMove
+        EDTCallback {
+          chessboard.makeMove(m)
+        }
+      }
+//      Actor.spawn {
+//        println("No need for a contractor")
+//      }
+    }
+    contents += Button("Do One-Off") {
+      SwingGeneralContractor.doOneOff {
+        EDTCallback {
+          println("That's the way I like it")
+        }
+      }
+    }
+    contents += Button("Do Work") {
+      SwingGeneralContractor.doWork("tony")
+    }
   }
   contents += new ScrollPane(chessboard)
 }

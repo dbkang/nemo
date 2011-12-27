@@ -151,6 +151,7 @@ class BitBoard(val self:Long) {
   def setListOfBits(l:Seq[Int]) = self | BitBoard.fromSeqOfBits(l)
   def clearListOfBits(l:Seq[Int]) = self & ~(BitBoard.fromSeqOfBits(l))
   def listOfSetBits = (0 to 63).filter(bit(_))
+  def count = listOfSetBits.length
   def shift(fileD:Int, rankD:Int) = {
     val shiftAmount = Square(fileD, rankD)
     if (shiftAmount < 0)
