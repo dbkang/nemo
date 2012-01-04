@@ -12,4 +12,4 @@ libraryDependencies += "se.scalablesolutions.akka" % "akka-actor" % "1.2"
 
 scalacOptions ++= Seq("-deprecation")
 
-mainClass in (Compile, run) := Some("ChessUI")
+mainClass in (Compile, run) := Some("BasicNemoTest")
