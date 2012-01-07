@@ -42,10 +42,14 @@ case class EMulDiv(left:Expr, rights:Seq[(Expr,OpMulDiv)]) extends Expr {
 
 case class ERef(n:String) extends Expr {
   // TODO: this needs to be wired into the spreadsheet calculation module
-  def eval = Some(5)
+  def eval = NemoParser.refResolver(n)
 }
 
 object NemoParser extends scala.util.parsing.combinator.RegexParsers {
+  var refResolver:(String=>Option[Int]) = {
+    _ => None
+  }
+  //        def resolveRef(ref:String):Option[Int]= refResolver(ref)    
   def apply(str:String) = {
     println("Parsing " + str)
     parseAll(expr, str)
@@ -59,5 +63,4 @@ object NemoParser extends scala.util.parsing.combinator.RegexParsers {
   def expr = term ~ rep("+" ~> term ^^ { (_, OpAdd) } | "-" ~> term ^^ { (_, OpSub) } ) ^^ {
     case l ~ r => EAddSub(l, r)
   }
-  //def referenceHandler_=(
 }

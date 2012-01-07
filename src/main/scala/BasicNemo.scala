@@ -31,8 +31,7 @@ object NemoUtils {
       case (Some(col), Some(row)) => Some((col,row))
       case _ => None
     }
-  }
-    
+  }    
 }
 
 class FormulaRenderer extends DefaultTableCellRenderer {
@@ -40,7 +39,7 @@ class FormulaRenderer extends DefaultTableCellRenderer {
     if (v == null || v.toString == "")
       setText("")
     else
-      setText(NemoParser(v.toString).get.eval.get.toString)
+      setText(NemoParser(v.toString).map(_.eval).getOrElse(None).getOrElse("Error").toString)
   }
 }
 
@@ -51,12 +50,26 @@ class NemoTable(val data: Array[Array[Any]], val colnum:Int) extends Table(data,
 }
 
 class BasicNemo(t:NemoTable) extends ScrollPane(t) {
-  def registerReferenceHandler = {
-    //def refHandler(ref:String):Option[Int] = {}
-    //NemoParser.referenceHandler = (
+  def registerRefResolver = {
+    def refResolver(ref:String):Option[Int] = {
+      NemoUtils.colRowNumbers(ref) match {
+        case Some((col, row)) => {
+          if (col <= t.peer.getColumnCount && row <= t.rowCount) {
+            val v = t(row-1, col-1)
+            if (v == null || v.toString == "")
+              Some(0)
+            else {
+              NemoParser(v.toString).map(_.eval).getOrElse(None)
+            }
+          }
+          else None
+        }
+        case _ => None
+      }
+    }
+    NemoParser.refResolver = refResolver _
   }
   rowHeaderView = new NemoRowHeader(t)
-  
 }
 
 object BasicNemoTest extends SimpleSwingApplication {
@@ -64,7 +77,7 @@ object BasicNemoTest extends SimpleSwingApplication {
   def top = new MainFrame {
     title = "NemoCalc"
     val nemo = new BasicNemo(new NemoTable(Array.ofDim(30,30), 10))
-    nemo.registerReferenceHandler
+    nemo.registerRefResolver
     contents = nemo
   }
 }
