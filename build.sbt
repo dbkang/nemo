@@ -13,3 +13,9 @@ libraryDependencies += "se.scalablesolutions.akka" % "akka-actor" % "1.2"
 scalacOptions ++= Seq("-deprecation")
 
 mainClass in (Compile, run) := Some("BasicNemoTest")
+
+// mainClass in (Compile, run) := Some("GameOfLife")
+
+fork in run := true
+
+javaOptions in run += "-Xmx1G"

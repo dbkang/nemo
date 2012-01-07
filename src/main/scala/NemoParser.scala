@@ -1,5 +1,5 @@
 sealed abstract class Expr {
-  def eval:Int
+  def eval:Option[Int]
 }
 
 sealed abstract class Oper
@@ -14,24 +14,35 @@ case object OpSub extends OpAddSub
 
 
 case class ELit(v:Int) extends Expr {
-  def eval = v
+  def eval = Some(v)
 }
 
 case class EAddSub(left:Expr, rights:Seq[(Expr,OpAddSub)]) extends Expr {
   def eval = rights.foldLeft(left.eval) {
-    (l, r) => r._2 match { case OpAdd => l + r._1.eval; case OpSub => l - r._1.eval }
+    //(l, r) => r._2 match { case OpAdd => l + r._1.eval; case OpSub => l - r._1.eval }
+    (l, r) => {
+      (l, r._1.eval, r._2) match {
+        case (Some(l1), Some(r1), op) => Some(op match { case OpAdd => l1 + r1; case OpSub => l1 - r1 })
+        case _ => None
+      }
+    }
   }
 }
 
 case class EMulDiv(left:Expr, rights:Seq[(Expr,OpMulDiv)]) extends Expr {
   def eval = rights.foldLeft(left.eval) {
-    (l, r) => r._2 match { case OpMul => l * r._1.eval; case OpDiv => l / r._1.eval }
+    (l, r) => {
+      (l, r._1.eval, r._2) match {
+        case (Some(l1), Some(r1), op) => Some(op match { case OpMul => l1 * r1; case OpDiv => l1 / r1 })
+        case _ => None
+      }
+    }
   }
 }
 
 case class ERef(n:String) extends Expr {
   // TODO: this needs to be wired into the spreadsheet calculation module
-  def eval = 5
+  def eval = Some(5)
 }
 
 object NemoParser extends scala.util.parsing.combinator.RegexParsers {
@@ -48,10 +59,5 @@ object NemoParser extends scala.util.parsing.combinator.RegexParsers {
   def expr = term ~ rep("+" ~> term ^^ { (_, OpAdd) } | "-" ~> term ^^ { (_, OpSub) } ) ^^ {
     case l ~ r => EAddSub(l, r)
   }
+  //def referenceHandler_=(
 }
-
-
-//object ParserTest {
-//  def apply(str:String) = NemoParser.parseAll(NemoParser.expr, str)
-//}
-  
