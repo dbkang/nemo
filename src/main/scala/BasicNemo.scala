@@ -1,6 +1,7 @@
 import scala.swing._
 import javax.swing.UIManager
 import javax.swing.table.DefaultTableCellRenderer
+import javax.swing.table.AbstractTableModel
 
 object NemoUtils {
   def columnName(n:Int):String = {
@@ -12,7 +13,6 @@ object NemoUtils {
   def colNames(n:Int) = (1 to n).map(columnName(_))
 
   def colNumber(s:String):Option[Int] = {
-    //val chars = s.toUpperCase.toSeq
     val colN = s.toUpperCase.foldLeft(0)((result, c) => result * 26 + c - 'A' + 1)
     if (colN > 0) Some(colN) else None
   }
@@ -31,25 +31,79 @@ object NemoUtils {
       case (Some(col), Some(row)) => Some((col,row))
       case _ => None
     }
-  }    
+  }
 }
 
 class FormulaRenderer extends DefaultTableCellRenderer {
   override def setValue(v:AnyRef) {
     if (v == null || v.toString == "")
       setText("")
-    else
-      setText(NemoParser(v.toString).map(_.eval).getOrElse(None).getOrElse("Error").toString)
+    else {
+      try {
+        setText(v.asInstanceOf[NemoCell].text)
+      }
+      catch {
+        case e => setText("Error")
+      }
+    }
+    //setText(NemoParser(v.toString).map(_.eval).getOrElse(None).getOrElse("Error").toString)
   }
 }
 
-class NemoTable(val data: Array[Array[Any]], val colnum:Int) extends Table(data, NemoUtils.colNames(colnum)) {
+
+// TODO: This needs to be use NemoCells for the model.
+class NemoTable(val rows:Int, val cols:Int) extends Table {
+  val columnNames = NemoUtils.colNames(cols)
+  val data = Array.ofDim[NemoCell](rows,cols)
+  def value(row:Int, col:Int) = {
+    if (data(row)(col) == null)
+      None
+    else
+      Some(data(row)(col))
+  }
+  model = new AbstractTableModel {
+    override def getColumnName(col: Int) = columnNames(col)
+    def getRowCount = data.length
+    def getColumnCount = columnNames.length
+    def getValueAt(row:Int, col:Int) = value(row, col).getOrElse("")
+    override def isCellEditable(row:Int, col:Int) = true
+    override def setValueAt(value:Any, row:Int, col:Int) {
+      if (data(row)(col) == null) {
+        data(row)(col) = new NemoCell(row, col)
+      }
+      data(row)(col).formula = value.toString
+      fireTableCellUpdated(row, col)
+      repaint
+    }
+  }
+
   peer.setDefaultRenderer(classOf[AnyRef], new FormulaRenderer)
   selection.elementMode = Table.ElementMode.Cell
   autoResizeMode = Table.AutoResizeMode.Off
+  peer.getTableHeader.setReorderingAllowed(false)
+
+  override def updateCell(row:Int, col:Int) = {
+    model.asInstanceOf[AbstractTableModel].fireTableCellUpdated(row, col)
+  }
+    
+  def apply(ref:String):Option[NemoCell] = {
+    NemoUtils.colRowNumbers(ref) match {
+      case Some((col, row)) => {
+        if (col <= peer.getColumnCount && row <= rowCount) {
+          if (data(row-1)(col-1) == null)
+            data(row-1)(col-1) = new NemoCell(row-1, col-1)
+          value(row-1,col-1)
+        }
+        else
+          None
+      }
+      case _ => None
+    }
+  }
 }
 
 class BasicNemo(t:NemoTable) extends ScrollPane(t) {
+  // TODO: this mechanism is being replaced with simple table registration
   def registerRefResolver = {
     def refResolver(ref:String):Option[Int] = {
       NemoUtils.colRowNumbers(ref) match {
@@ -67,8 +121,9 @@ class BasicNemo(t:NemoTable) extends ScrollPane(t) {
         case _ => None
       }
     }
-    NemoParser.refResolver = refResolver _
+    //NemoParser.refResolver = refResolver _
   }
+  NemoParser.nemoTableReferenced = t
   rowHeaderView = new NemoRowHeader(t)
 }
 
@@ -76,8 +131,8 @@ object BasicNemoTest extends SimpleSwingApplication {
 //  UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
   def top = new MainFrame {
     title = "NemoCalc"
-    val nemo = new BasicNemo(new NemoTable(Array.ofDim(30,30), 10))
-    nemo.registerRefResolver
+    val nemo = new BasicNemo(new NemoTable(255,32))
+    //nemo.registerRefResolver
     contents = nemo
   }
 }

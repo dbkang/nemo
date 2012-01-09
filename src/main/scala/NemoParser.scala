@@ -40,16 +40,17 @@ case class EMulDiv(left:Expr, rights:Seq[(Expr,OpMulDiv)]) extends Expr {
   }
 }
 
-case class ERef(n:String) extends Expr {
-  // TODO: this needs to be wired into the spreadsheet calculation module
-  def eval = NemoParser.refResolver(n)
+case class ERef(r:String) extends Expr {
+  def eval = NemoParser.refToNemoCell(r).flatMap(_.value)
 }
 
+
+// Using Parser Combinators to define syntax/parsing rules of Nemo formulas declaratively.
+// Each nemo formula is parsed into an instance of Expr.  Any related utility functions also
+// belong here
 object NemoParser extends scala.util.parsing.combinator.RegexParsers {
-  var refResolver:(String=>Option[Int]) = {
-    _ => None
-  }
-  //        def resolveRef(ref:String):Option[Int]= refResolver(ref)    
+  var nemoTableReferenced:NemoTable = null
+  def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
   def apply(str:String) = {
     println("Parsing " + str)
     parseAll(expr, str)
