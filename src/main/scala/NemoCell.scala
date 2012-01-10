@@ -38,8 +38,11 @@ class NemoCell(val column:Int, val row:Int) {
     e match {
       case ELit(_) => Seq()
       case ERef(ref) => NemoParser.refToNemoCell(ref).toList
-      case EAddSub(l, rs) => findPrecedents(l) ++ rs.flatMap(r => findPrecedents(r._1))
-      case EMulDiv(l, rs) => findPrecedents(l) ++ rs.flatMap(r => findPrecedents(r._1))
+      case EAdd(l, r) => findPrecedents(l) ++ findPrecedents(r)
+      case ESub(l, r) => findPrecedents(l) ++ findPrecedents(r)
+      case EMul(l, r) => findPrecedents(l) ++ findPrecedents(r)
+      case EDiv(l, r) => findPrecedents(l) ++ findPrecedents(r)
+
     }
   }  
 
@@ -85,9 +88,9 @@ case class NemoInt(val value:Int) extends NemoValue {
   def valueType = "Int"
   def convert(a:NemoValue):Option[NemoInt] = if (a.isInstanceOf[NemoInt]) Some(a.asInstanceOf[NemoInt]) else None    
   override def +(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
-  override def *(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
-  override def /(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
-  override def -(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
+  override def *(b:NemoValue) = convert(b).map(a => NemoInt(a.value * value)).getOrElse(NemoError("Not supported"))
+  override def /(b:NemoValue) = convert(b).map(a => NemoInt(value / a.value)).getOrElse(NemoError("Not supported"))
+  override def -(b:NemoValue) = convert(b).map(a => NemoInt(value - a.value)).getOrElse(NemoError("Not supported"))
   override def toString = value.toString
 }
 

@@ -1,43 +1,28 @@
+//import scala.util.parsing.combinator.RegexParsers
+import scala.util.parsing.combinator.syntactical.StandardTokenParsers
+
 sealed abstract class Expr {
   def eval:Option[NemoValue]
 }
-
-sealed abstract class Oper
-
-sealed abstract class OpMulDiv extends Oper
-sealed abstract class OpAddSub extends Oper
-
-case object OpMul extends OpMulDiv
-case object OpDiv extends OpMulDiv
-case object OpAdd extends OpAddSub
-case object OpSub extends OpAddSub
-
 
 case class ELit(v:NemoValue) extends Expr {
   def eval = Some(v)
 }
 
-case class EAddSub(left:Expr, rights:Seq[(Expr,OpAddSub)]) extends Expr {
-  def eval = rights.foldLeft(left.eval) {
-    //(l, r) => r._2 match { case OpAdd => l + r._1.eval; case OpSub => l - r._1.eval }
-    (l, r) => {
-      (l, r._1.eval, r._2) match {
-        case (Some(l1), Some(r1), op) => Some(op match { case OpAdd => l1 + r1; case OpSub => l1 - r1 })
-        case _ => None
-      }
-    }
-  }
+case class EAdd(l:Expr, r:Expr) extends Expr {
+  def eval = for (i <- l.eval; j <- r.eval) yield i + j
 }
 
-case class EMulDiv(left:Expr, rights:Seq[(Expr,OpMulDiv)]) extends Expr {
-  def eval = rights.foldLeft(left.eval) {
-    (l, r) => {
-      (l, r._1.eval, r._2) match {
-        case (Some(l1), Some(r1), op) => Some(op match { case OpMul => l1 * r1; case OpDiv => l1 / r1 })
-        case _ => None
-      }
-    }
-  }
+case class ESub(l:Expr, r:Expr) extends Expr {
+  def eval = for (i <- l.eval; j <- r.eval) yield i - j
+}
+
+case class EMul(l:Expr, r:Expr) extends Expr {
+  def eval = for (i <- l.eval; j <- r.eval) yield i * j
+}
+
+case class EDiv(l:Expr, r:Expr) extends Expr {
+  def eval = for (i <- l.eval; j <- r.eval) yield i / j
 }
 
 case class ERef(r:String) extends Expr {
@@ -48,20 +33,21 @@ case class ERef(r:String) extends Expr {
 // Using Parser Combinators to define syntax/parsing rules of Nemo formulas declaratively.
 // Each nemo formula is parsed into an instance of Expr.  Any related utility functions also
 // belong here
-object NemoParser extends scala.util.parsing.combinator.RegexParsers {
+object NemoParser extends StandardTokenParsers {
   var nemoTableReferenced:NemoTable = null
+
+  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")")
+  val numericLiteral = numericLit ^^ { i => ELit(NemoInt(i.toInt)) }
+  val ref = ident ^^ ERef
+  def factor:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | ref
+
+  def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)
+  def expr = term * ("+" ^^^ EAdd | "-" ^^^ ESub)
+
   def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
+
   def apply(str:String) = {
     println("Parsing " + str)
-    parseAll(expr, str)
-  }
-  val REF = regex("""[a-zA-z][a-zA-Z]*[1-9][0-9]*"""r) ^^ { ERef(_) }
-  val NUM = regex("""[1-9][0-9]*"""r) ^^ { i => ELit(NemoInt(i.toInt)) }
-  def factor:Parser[Expr] =  "(" ~> expr <~ ")" | REF | NUM 
-  def term = factor ~ rep("*" ~> factor ^^ { (_, OpMul) } | "/" ~> factor ^^ { (_, OpDiv) } ) ^^ {
-    case l ~ r => EMulDiv(l, r)
-  }
-  def expr = term ~ rep("+" ~> term ^^ { (_, OpAdd) } | "-" ~> term ^^ { (_, OpSub) } ) ^^ {
-    case l ~ r => EAddSub(l, r)
+    phrase(expr)(new lexical.Scanner(str))
   }
 }
