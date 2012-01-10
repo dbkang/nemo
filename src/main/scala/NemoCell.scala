@@ -8,7 +8,7 @@ import scala.collection.mutable.Set
 class NemoCell(val column:Int, val row:Int) {
   private var formulaValue:String = ""
   private var parsed:Option[Expr] = None
-  private var cachedValue:Option[Int] = None
+  private var cachedValue:Option[NemoValue] = None
 
   //def nemotable(col:Int, row:Int):NemoCell
 
@@ -67,3 +67,38 @@ class NemoCell(val column:Int, val row:Int) {
   }
   override def toString = formula
 }
+
+
+// represents values stored in each cell
+trait NemoValue {
+  def valueType:String
+  def value:Any
+  // up to child classes to override them
+  def +(b:NemoValue):NemoValue = NemoError("Not supported")
+  def *(b:NemoValue):NemoValue = NemoError("Not supported")
+  def /(b:NemoValue):NemoValue = NemoError("Not supported")
+  def -(b:NemoValue):NemoValue = NemoError("Not supported")
+}
+
+
+case class NemoInt(val value:Int) extends NemoValue {
+  def valueType = "Int"
+  def convert(a:NemoValue):Option[NemoInt] = if (a.isInstanceOf[NemoInt]) Some(a.asInstanceOf[NemoInt]) else None    
+  override def +(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
+  override def *(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
+  override def /(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
+  override def -(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
+  override def toString = value.toString
+}
+
+case class NemoDouble(val value:Double) extends NemoValue {
+  def valueType = "Double"
+}
+
+case class NemoString(val value:String) extends NemoValue {
+  def valueType = "String"
+}
+
+case class NemoError(val value:String) extends NemoValue {
+  def valueType = "Error"
+}  

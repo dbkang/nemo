@@ -1,5 +1,5 @@
 sealed abstract class Expr {
-  def eval:Option[Int]
+  def eval:Option[NemoValue]
 }
 
 sealed abstract class Oper
@@ -13,7 +13,7 @@ case object OpAdd extends OpAddSub
 case object OpSub extends OpAddSub
 
 
-case class ELit(v:Int) extends Expr {
+case class ELit(v:NemoValue) extends Expr {
   def eval = Some(v)
 }
 
@@ -56,7 +56,7 @@ object NemoParser extends scala.util.parsing.combinator.RegexParsers {
     parseAll(expr, str)
   }
   val REF = regex("""[a-zA-z][a-zA-Z]*[1-9][0-9]*"""r) ^^ { ERef(_) }
-  val NUM = regex("""[1-9][0-9]*"""r) ^^ { i => ELit(i.toInt) }
+  val NUM = regex("""[1-9][0-9]*"""r) ^^ { i => ELit(NemoInt(i.toInt)) }
   def factor:Parser[Expr] =  "(" ~> expr <~ ")" | REF | NUM 
   def term = factor ~ rep("*" ~> factor ^^ { (_, OpMul) } | "/" ~> factor ^^ { (_, OpDiv) } ) ^^ {
     case l ~ r => EMulDiv(l, r)

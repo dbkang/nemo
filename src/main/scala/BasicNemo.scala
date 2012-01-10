@@ -51,7 +51,6 @@ class FormulaRenderer extends DefaultTableCellRenderer {
 }
 
 
-// TODO: This needs to be use NemoCells for the model.
 class NemoTable(val rows:Int, val cols:Int) extends Table {
   val columnNames = NemoUtils.colNames(cols)
   val data = Array.ofDim[NemoCell](rows,cols)
@@ -103,26 +102,6 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
 }
 
 class BasicNemo(t:NemoTable) extends ScrollPane(t) {
-  // TODO: this mechanism is being replaced with simple table registration
-  def registerRefResolver = {
-    def refResolver(ref:String):Option[Int] = {
-      NemoUtils.colRowNumbers(ref) match {
-        case Some((col, row)) => {
-          if (col <= t.peer.getColumnCount && row <= t.rowCount) {
-            val v = t(row-1, col-1)
-            if (v == null || v.toString == "")
-              Some(0)
-            else {
-              NemoParser(v.toString).map(_.eval).getOrElse(None)
-            }
-          }
-          else None
-        }
-        case _ => None
-      }
-    }
-    //NemoParser.refResolver = refResolver _
-  }
   NemoParser.nemoTableReferenced = t
   rowHeaderView = new NemoRowHeader(t)
 }
