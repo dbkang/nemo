@@ -38,8 +38,9 @@ object NemoParser extends StandardTokenParsers {
 
   lexical.delimiters ++= List("+", "-", "*", "/", "(", ")")
   val numericLiteral = numericLit ^^ { i => ELit(NemoInt(i.toInt)) }
+  val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
   val ref = ident ^^ ERef
-  def factor:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | ref
+  def factor:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | stringLiteral | ref
 
   def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)
   def expr = term * ("+" ^^^ EAdd | "-" ^^^ ESub)

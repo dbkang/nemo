@@ -2,6 +2,8 @@ import scala.swing._
 import javax.swing.UIManager
 import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.AbstractTableModel
+import javax.swing.ImageIcon
+import java.net.URL
 
 object NemoUtils {
   def columnName(n:Int):String = {
@@ -40,13 +42,16 @@ class FormulaRenderer extends DefaultTableCellRenderer {
       setText("")
     else {
       try {
-        setText(v.asInstanceOf[NemoCell].text)
+        val v2 = v.asInstanceOf[NemoCell].value.get
+        if (v2.valueType == "ImageURL")
+          setIcon(new ImageIcon(new URL(v2.asInstanceOf[NemoImageURL].value)))
+        else
+          setText(v.asInstanceOf[NemoCell].text)
       }
       catch {
         case e => setText("Error")
       }
     }
-    //setText(NemoParser(v.toString).map(_.eval).getOrElse(None).getOrElse("Error").toString)
   }
 }
 

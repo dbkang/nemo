@@ -81,6 +81,7 @@ trait NemoValue {
   def *(b:NemoValue):NemoValue = NemoError("Not supported")
   def /(b:NemoValue):NemoValue = NemoError("Not supported")
   def -(b:NemoValue):NemoValue = NemoError("Not supported")
+  override def toString = value.toString
 }
 
 
@@ -91,7 +92,6 @@ case class NemoInt(val value:Int) extends NemoValue {
   override def *(b:NemoValue) = convert(b).map(a => NemoInt(a.value * value)).getOrElse(NemoError("Not supported"))
   override def /(b:NemoValue) = convert(b).map(a => NemoInt(value / a.value)).getOrElse(NemoError("Not supported"))
   override def -(b:NemoValue) = convert(b).map(a => NemoInt(value - a.value)).getOrElse(NemoError("Not supported"))
-  override def toString = value.toString
 }
 
 case class NemoDouble(val value:Double) extends NemoValue {
@@ -100,8 +100,15 @@ case class NemoDouble(val value:Double) extends NemoValue {
 
 case class NemoString(val value:String) extends NemoValue {
   def valueType = "String"
+  override def +(b:NemoValue) = NemoString(value + b.toString)
 }
 
 case class NemoError(val value:String) extends NemoValue {
   def valueType = "Error"
+  override def toString = "Error: " + value
 }  
+
+case class NemoImageURL(val value:String) extends NemoValue {
+  def valueType = "ImageURL"
+  override def toString = "ImageURL: " + value
+}
