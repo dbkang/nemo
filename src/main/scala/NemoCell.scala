@@ -60,7 +60,7 @@ class NemoCell(val column:Int, val row:Int) {
   }
 
   def text = value.getOrElse("Error").toString
-  def address = NemoUtils.columnName(column) + row.toString
+  def address = NemoUtil.columnName(column) + row.toString
   def value = cachedValue //parsed.flatMap(_.eval)
   def calculate:Unit = {
     cachedValue = parsed.flatMap(_.eval)
@@ -96,6 +96,18 @@ case class NemoInt(val value:Int) extends NemoValue {
 
 case class NemoDouble(val value:Double) extends NemoValue {
   def valueType = "Double"
+  def convert(a:NemoValue):Option[NemoDouble] = {
+    if (a.isInstanceOf[NemoDouble])
+      Some(a.asInstanceOf[NemoDouble])
+    else if (a.isInstanceOf[NemoInt])
+      Some(NemoDouble(a.asInstanceOf[NemoInt].value.toDouble))
+    else None
+  }
+  override def +(b:NemoValue) = convert(b).map(a => NemoDouble(a.value + value)).getOrElse(NemoError("Not supported"))
+  override def *(b:NemoValue) = convert(b).map(a => NemoDouble(a.value * value)).getOrElse(NemoError("Not supported"))
+  override def /(b:NemoValue) = convert(b).map(a => NemoDouble(value / a.value)).getOrElse(NemoError("Not supported"))
+  override def -(b:NemoValue) = convert(b).map(a => NemoDouble(value - a.value)).getOrElse(NemoError("Not supported"))
+
 }
 
 case class NemoString(val value:String) extends NemoValue {

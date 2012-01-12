@@ -5,7 +5,13 @@ import javax.swing.table.AbstractTableModel
 import javax.swing.ImageIcon
 import java.net.URL
 
-object NemoUtils {
+object NemoUtil {
+  var defaultRowHeight = 16
+  
+  def newRowHeight(current:Int, newMinimumRequired:Int) =
+    math.max(math.max(current, newMinimumRequired), defaultRowHeight)
+
+
   def columnName(n:Int):String = {
     if (n <= 0)
       ""
@@ -38,18 +44,37 @@ object NemoUtils {
 
 class FormulaRenderer extends DefaultTableCellRenderer {
   override def setValue(v:AnyRef) {
-    if (v == null || v.toString == "")
+    if (v == null || v.toString == "") {
+      setIcon(null)
       setText("")
+    }
     else {
       try {
         val v2 = v.asInstanceOf[NemoCell].value.get
-        if (v2.valueType == "ImageURL")
-          setIcon(new ImageIcon(new URL(v2.asInstanceOf[NemoImageURL].value)))
-        else
+        if (v2.valueType == "ImageURL") {
+          val c = v.asInstanceOf[NemoCell]
+          val icon = new ImageIcon(new URL(v2.asInstanceOf[NemoImageURL].value))
+          val height = icon.getIconHeight
+          val width = icon.getIconWidth
+          val t = NemoParser.nemoTableReferenced
+          val col = t.peer.getColumnModel.getColumn(c.column)
+          //println("New width: " + width)
+          //println("Old width: " + col.getWidth)
+          //println("Column number: " + c.column)
+          col.setPreferredWidth(math.max(col.getPreferredWidth, width))
+          t.peer.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
+          setIcon(icon)
+        }      
+        else {
+          setIcon(null)
           setText(v.asInstanceOf[NemoCell].text)
+        }
       }
       catch {
-        case e => setText("Error")
+        case e => {
+          setIcon(null);
+          setText("Error")
+        }
       }
     }
   }
@@ -57,7 +82,7 @@ class FormulaRenderer extends DefaultTableCellRenderer {
 
 
 class NemoTable(val rows:Int, val cols:Int) extends Table {
-  val columnNames = NemoUtils.colNames(cols)
+  val columnNames = NemoUtil.colNames(cols)
   val data = Array.ofDim[NemoCell](rows,cols)
   def value(row:Int, col:Int) = {
     if (data(row)(col) == null)
@@ -91,7 +116,7 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
   }
     
   def apply(ref:String):Option[NemoCell] = {
-    NemoUtils.colRowNumbers(ref) match {
+    NemoUtil.colRowNumbers(ref) match {
       case Some((col, row)) => {
         if (col <= peer.getColumnCount && row <= rowCount) {
           if (data(row-1)(col-1) == null)

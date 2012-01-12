@@ -1,5 +1,5 @@
-//import scala.util.parsing.combinator.RegexParsers
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
+import scala.util.parsing.combinator.lexical.StdLexical
 
 sealed abstract class Expr {
   def eval:Option[NemoValue]
@@ -35,20 +35,32 @@ case class ERef(r:String) extends Expr {
 // belong here
 object NemoParser extends StandardTokenParsers {
   var nemoTableReferenced:NemoTable = null
-
+  
+  override val lexical = ExprLexical
   lexical.delimiters ++= List("+", "-", "*", "/", "(", ")")
-  val numericLiteral = numericLit ^^ { i => ELit(NemoInt(i.toInt)) }
+  lexical.reserved ++= List("url")
+  val numericLiteral = numericLit ^^ {
+    i => if (i.contains(".")) ELit(NemoDouble(i.toDouble)) else ELit(NemoInt(i.toInt))
+  }
   val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
+  val url = "url" ~> "(" ~> stringLit <~ ")" ^^ { s => ELit(NemoImageURL(s)) }
   val ref = ident ^^ ERef
   def factor:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | stringLiteral | ref
 
   def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)
-  def expr = term * ("+" ^^^ EAdd | "-" ^^^ ESub)
+  def expr = term * ("+" ^^^ EAdd | "-" ^^^ ESub) | url
 
   def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
 
   def apply(str:String) = {
     println("Parsing " + str)
     phrase(expr)(new lexical.Scanner(str))
+  }
+}
+
+object ExprLexical extends StdLexical {
+  override def token = decimal | super.token
+  def decimal = rep(digit) ~ '.' ~ rep1(digit) ^^ {
+    case i ~ dot ~ d => NumericLit(i.mkString + "." + d.mkString)
   }
 }
