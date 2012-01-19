@@ -62,7 +62,7 @@ class FormulaRenderer extends DefaultTableCellRenderer {
           //println("Old width: " + col.getWidth)
           //println("Column number: " + c.column)
           col.setPreferredWidth(math.max(col.getPreferredWidth, width))
-          t.peer.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
+          t.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
           setIcon(icon)
         }      
         else {
@@ -84,12 +84,15 @@ class FormulaRenderer extends DefaultTableCellRenderer {
 class NemoTable(val rows:Int, val cols:Int) extends Table {
   val columnNames = NemoUtil.colNames(cols)
   val data = Array.ofDim[NemoCell](rows,cols)
+  var rowHeader:NemoRowHeader = null
+
   def value(row:Int, col:Int) = {
     if (data(row)(col) == null)
       None
     else
       Some(data(row)(col))
   }
+
   model = new AbstractTableModel {
     override def getColumnName(col: Int) = columnNames(col)
     def getRowCount = data.length
@@ -110,6 +113,11 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
   selection.elementMode = Table.ElementMode.Cell
   autoResizeMode = Table.AutoResizeMode.Off
   peer.getTableHeader.setReorderingAllowed(false)
+
+  def setRowHeight(row:Int, newHeight:Int) = {
+    peer.setRowHeight(row, newHeight)
+    rowHeader.peer.setRowHeight(row,newHeight)
+  }
 
   override def updateCell(row:Int, col:Int) = {
     model.asInstanceOf[AbstractTableModel].fireTableCellUpdated(row, col)
@@ -133,7 +141,9 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
 
 class BasicNemo(t:NemoTable) extends ScrollPane(t) {
   NemoParser.nemoTableReferenced = t
-  rowHeaderView = new NemoRowHeader(t)
+  val rh = new NemoRowHeader(t)
+  rowHeaderView = rh
+  t.rowHeader = rh
 }
 
 object BasicNemoTest extends SimpleSwingApplication {

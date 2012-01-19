@@ -5,7 +5,7 @@ import scala.collection.mutable.Set
 // something else like NemoCellValue.  I would think eventually, it's going to be
 // NemoCellValue, but not completely certain
 
-class NemoCell(val column:Int, val row:Int) {
+class NemoCell(val row:Int, val column:Int) {
   private var formulaValue:String = ""
   private var parsed:Option[Expr] = None
   private var cachedValue:Option[NemoValue] = None
@@ -42,7 +42,7 @@ class NemoCell(val column:Int, val row:Int) {
       case ESub(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EMul(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EDiv(l, r) => findPrecedents(l) ++ findPrecedents(r)
-
+      case EFunCall(f, a) => findPrecedents(a)
     }
   }  
 
