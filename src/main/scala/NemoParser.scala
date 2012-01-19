@@ -29,13 +29,22 @@ case class ERef(r:String) extends Expr {
   def eval = NemoParser.refToNemoCell(r).flatMap(_.value)
 }
 
-case class EFunCall(fun:String, arg:Expr) extends Expr {
-  def eval = {
-    if (fun == "url")
-      arg.eval.map(u => NemoImageURL(u.toString))
+object EApply {
+  var functions:PartialFunction[String,NemoValue=>Option[NemoValue]] = null
+  addPartial { case _ => (a => None) }
+  addPartial {
+    case "url" => { s => Some(NemoImageURL(s.toString)) }
+  }
+  def addPartial(fun:PartialFunction[String,NemoValue=>Option[NemoValue]]) = {
+    if (functions == null)
+      functions = fun
     else
-      None
-  }  
+      functions = fun.orElse(functions)
+  }
+}
+
+case class EApply(fun:String, arg:Expr) extends Expr {
+  def eval = arg.eval.flatMap(a => EApply.functions(fun)(a))
 } 
 
 // Using Parser Combinators to define syntax/parsing rules of Nemo formulas declaratively.
@@ -51,7 +60,7 @@ object NemoParser extends StandardTokenParsers {
     i => if (i.contains(".")) ELit(NemoDouble(i.toDouble)) else ELit(NemoInt(i.toInt))
   }
   val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
-  def funCall:Parser[Expr] = ident ~ ("(" ~> expr <~ ")") ^^ { case f ~ e => EFunCall(f, e) }
+  def funCall:Parser[Expr] = ident ~ ("(" ~> expr <~ ")") ^^ { case f ~ e => EApply(f, e) }
   val ref = ident ^^ ERef
   def factor:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | stringLiteral | funCall | ref 
   def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)

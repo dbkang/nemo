@@ -42,7 +42,7 @@ class NemoCell(val row:Int, val column:Int) {
       case ESub(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EMul(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EDiv(l, r) => findPrecedents(l) ++ findPrecedents(r)
-      case EFunCall(f, a) => findPrecedents(a)
+      case EApply(f, a) => findPrecedents(a)
     }
   }  
 
