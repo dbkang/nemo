@@ -35,6 +35,18 @@ object EApply {
   addPartial {
     case "url" => { s => Some(NemoImageURL(s.toString)) }
   }
+  addPartial {
+    case "command" => { c => {
+      import scala.sys.process._
+      var stringBuffer:String = ""
+      c.toString ! ProcessLogger {
+        output => stringBuffer += (output + "\n")
+      }
+      Some(NemoString(stringBuffer))
+    }}
+  }
+                       
+
   def addPartial(fun:PartialFunction[String,NemoValue=>Option[NemoValue]]) = {
     if (functions == null)
       functions = fun
