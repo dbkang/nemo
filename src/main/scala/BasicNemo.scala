@@ -4,6 +4,8 @@ import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.AbstractTableModel
 import javax.swing.ImageIcon
 import java.net.URL
+import scala.collection.mutable.Buffer
+import scala.collection.mutable.Stack
 
 object NemoUtil {
   var defaultRowHeight = 16
@@ -85,6 +87,9 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
   val columnNames = NemoUtil.colNames(cols)
   val data = Array.ofDim[NemoCell](rows,cols)
   var rowHeader:NemoRowHeader = null
+  val undoStack = Stack[(Int,Int,String)]() // row, col, formula - for now
+  val redoStack = Stack[(Int,Int,String)]()
+  
 
   def value(row:Int, col:Int) = {
     if (data(row)(col) == null)
@@ -93,7 +98,7 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
       Some(data(row)(col))
   }
 
-  model = new AbstractTableModel {
+  private val _model = new AbstractTableModel {
     override def getColumnName(col: Int) = columnNames(col)
     def getRowCount = data.length
     def getColumnCount = columnNames.length
@@ -103,9 +108,35 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
       if (data(row)(col) == null) {
         data(row)(col) = new NemoCell(row, col)
       }
+      undoStack.push((row, col, data(row)(col).formula))
+      redoStack.clear
       data(row)(col).formula = value.toString
+      cellUpdated(row, col)
+    }
+
+    def cellUpdated(row:Int, col:Int) = {
       fireTableCellUpdated(row, col)
       repaint
+    }
+  }
+
+  model = _model
+
+  def undo = {
+    if (undoStack.length > 0) {
+      val (row, col, formula) = undoStack.pop
+      redoStack.push((row, col, data(row)(col).formula))
+      data(row)(col).formula = formula
+      _model.cellUpdated(row, col)
+    }
+  }
+
+  def redo = {
+    if (redoStack.length > 0) {
+      val (row, col, formula) = redoStack.pop
+      undoStack.push((row, col, data(row)(col).formula))
+      data(row)(col).formula = formula
+      _model.cellUpdated(row, col)
     }
   }
 
@@ -139,20 +170,33 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
   }
 }
 
-class BasicNemo(t:NemoTable) extends ScrollPane(t) {
+class BasicNemo(val t:NemoTable) extends ScrollPane(t) {
   NemoParser.nemoTableReferenced = t
   val rh = new NemoRowHeader(t)
   rowHeaderView = rh
   t.rowHeader = rh
 }
 
+class NemoContainer(val n:BasicNemo) extends BoxPanel(Orientation.Vertical) {
+  contents += new FlowPanel {
+    contents += Button("Undo") {
+      n.t.undo
+    }
+    contents += Button("Redo") {
+      n.t.redo
+    }
+  }
+  contents += n
+}
+  
+
 object BasicNemoTest extends SimpleSwingApplication {
 //  UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
   def top = new MainFrame {
     title = "NemoCalc"
-    val nemo = new BasicNemo(new NemoTable(255,32))
-    //nemo.registerRefResolver
-    contents = nemo
+    val nemo = new BasicNemo(new NemoTable(512,64))
+    contents = new NemoContainer(nemo)
+    //contents = nemo
   }
 }
 

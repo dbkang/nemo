@@ -21,6 +21,7 @@ class NemoRowHeader(t:Table) extends Table {
       setForeground(UIManager.getColor("TableHeader.foreground"))
       setBorder(UIManager.getBorder("TableHeader.cellBorder"))
       setFont(UIManager.getFont("TableHeader.font"))
+      setHorizontalAlignment(0) //setHorizontalAlignment(CENTER)
       setValue(v)
       this
     }
@@ -34,6 +35,7 @@ class NemoRowHeader(t:Table) extends Table {
   peer.setIntercellSpacing(new Dimension(0,0))
   peer.setShowHorizontalLines(false)
   peer.setShowVerticalLines(false)
+  
 }
                     
      
