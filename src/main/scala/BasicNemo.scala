@@ -7,6 +7,8 @@ import java.net.URL
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.Stack
 import scala.xml.NodeSeq
+import scala.xml.XML
+import java.io.File
 
 object NemoUtil {
   var defaultRowHeight = 16
@@ -84,12 +86,17 @@ class FormulaRenderer extends DefaultTableCellRenderer {
 }
 
 object NemoTable {
-//  def saveFile(t:NemoTable, f:File) = {
-//  }    
-//  def openFile(f:File):Option[NemoTable] = {
-//  }
-
-
+  def saveFile(t:NemoTable, f:File) = {
+    XML.save(f.getAbsolutePath, t.toNodeSeq)
+  }
+  def openFile(f:File):Option[NemoTable] = {
+    try {
+      val xml = XML.loadFile(f)
+      Some(apply(xml))
+    } catch {
+      case _ => None
+    }
+  }
 
   def apply(rows:Int, cols:Int) = {
     val t = new NemoTable(rows, cols)
@@ -268,12 +275,26 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
       println(demo)
       loadNemo(new BasicNemo(NemoTable(demo)))
     }
+    contents += Button("Open") {
+      val d = new FileChooser
+      val choice = d.showOpenDialog(this)
+      if (choice == FileChooser.Result.Approve)
+        NemoTable.openFile(d.selectedFile).foreach(t2 => loadNemo(new BasicNemo(t2)))
+    }        
+
+    contents += Button("Save") {
+      val d = new FileChooser
+      val choice = d.showSaveDialog(this)
+      if (choice == FileChooser.Result.Approve)
+        NemoTable.saveFile(nemo.t, d.selectedFile)
+    }        
+
   }
 }
   
 
 object BasicNemoTest extends SimpleSwingApplication {
-//  UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+  UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
   def top = new MainFrame {
     title = "NemoCalc"
     val nemo = new BasicNemo(NemoTable(512,64))
