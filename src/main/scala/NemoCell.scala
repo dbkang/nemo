@@ -69,6 +69,7 @@ class NemoCell(val row:Int, val column:Int) {
     dependents.foreach(_.calculate)
   }
   override def toString = formula
+  def toNodeSeq = <cell row={ row.toString } col={ column.toString } formula={ formula } />
 }
 
 

@@ -6,6 +6,7 @@ import javax.swing.ImageIcon
 import java.net.URL
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.Stack
+import scala.xml.NodeSeq
 
 object NemoUtil {
   var defaultRowHeight = 16
@@ -82,6 +83,44 @@ class FormulaRenderer extends DefaultTableCellRenderer {
   }
 }
 
+object NemoTable {
+//  def saveFile(t:NemoTable, f:File) = {
+//  }    
+//  def openFile(f:File):Option[NemoTable] = {
+//  }
+
+
+
+  def apply(rows:Int, cols:Int) = {
+    val t = new NemoTable(rows, cols)
+    NemoParser.nemoTableReferenced = t
+    t
+  }
+  def apply(xml:NodeSeq) = {
+    val attribs = xml(0).attributes
+    val table = try {
+      val rows = attribs("rows")(0).toString.toInt
+      val cols = attribs("cols")(0).toString.toInt
+      val t = new NemoTable(rows, cols)
+      NemoParser.nemoTableReferenced = t
+      xml(0).child.foreach(cell => {
+        if (cell.label == "cell") {
+          val row = cell.attributes("row")(0).toString.toInt
+          val col = cell.attributes("col")(0).toString.toInt
+          t.setFormula(row, col, cell.attributes("formula")(0).toString)
+        }
+      })
+      t.repaint
+      t
+    }
+    catch {
+      case _ => new NemoTable(64, 512)
+    }
+    NemoParser.nemoTableReferenced = table
+    table
+  }
+} 
+
 
 class NemoTable(val rows:Int, val cols:Int) extends Table {
   val columnNames = NemoUtil.colNames(cols)
@@ -89,13 +128,19 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
   var rowHeader:NemoRowHeader = null
   val undoStack = Stack[(Int,Int,String)]() // row, col, formula - for now
   val redoStack = Stack[(Int,Int,String)]()
-  
 
   def value(row:Int, col:Int) = {
     if (data(row)(col) == null)
       None
     else
       Some(data(row)(col))
+  }
+
+  def setFormula(row:Int, col:Int, formula:String) = {
+    if (data(row)(col) == null) {
+      data(row)(col) = new NemoCell(row, col)
+    }
+    data(row)(col).formula = formula
   }
 
   private val _model = new AbstractTableModel {
@@ -168,25 +213,62 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
       case _ => None
     }
   }
+
+  def toNodeSeq = {
+    <nemotable rows={rows.toString} cols={cols.toString}> {
+      for (i <- 0 until rows;
+           j <- 0 until cols if !value(i,j).isEmpty)
+        yield value(i,j).get.toNodeSeq
+    }
+    </nemotable>
+  }
 }
 
 class BasicNemo(val t:NemoTable) extends ScrollPane(t) {
-  NemoParser.nemoTableReferenced = t
   val rh = new NemoRowHeader(t)
   rowHeaderView = rh
   t.rowHeader = rh
 }
 
-class NemoContainer(val n:BasicNemo) extends BoxPanel(Orientation.Vertical) {
+object NemoContainer {
+  def apply(n:BasicNemo) = {
+    val nc = new NemoContainer
+    nc.loadNemo(n)
+    nc
+  }
+}
+
+class NemoContainer extends BoxPanel(Orientation.Vertical) {
+  var nemo:BasicNemo = null
+  def nemoIndex = contents.indexOf(nemo)
+  def loadNemo(n:BasicNemo) {
+    val i = nemoIndex
+    if (i > -1) contents.remove(nemoIndex)
+    contents += n
+    nemo = n
+    revalidate
+    repaint
+  }
   contents += new FlowPanel {
     contents += Button("Undo") {
-      n.t.undo
+      nemo.t.undo
     }
     contents += Button("Redo") {
-      n.t.redo
+      nemo.t.redo
+    }
+    contents += Button("Print") {
+      println(nemo.t.toNodeSeq)
+    }
+    contents += Button("Load Demo") {
+      val demo = <nemotable rows="5" cols="5">
+      <cell row="0" col="0" formula="5"/>
+      <cell row="1" col="0" formula="10"/>
+      <cell row="2" col="0" formula="a1+a2"/>
+      </nemotable>
+      println(demo)
+      loadNemo(new BasicNemo(NemoTable(demo)))
     }
   }
-  contents += n
 }
   
 
@@ -194,8 +276,8 @@ object BasicNemoTest extends SimpleSwingApplication {
 //  UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
   def top = new MainFrame {
     title = "NemoCalc"
-    val nemo = new BasicNemo(new NemoTable(512,64))
-    contents = new NemoContainer(nemo)
+    val nemo = new BasicNemo(NemoTable(512,64))
+    contents = NemoContainer(nemo)
     //contents = nemo
   }
 }
