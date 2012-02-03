@@ -17,8 +17,11 @@ class NemoRowHeader(t:Table) extends Table {
   object RowHeaderRenderer extends DefaultTableCellRenderer {
     override def getTableCellRendererComponent(t:JTable, v:Any, selected:Boolean,
                                                hasFocus:Boolean, row:Int, col:Int) = {
-      setBackground(UIManager.getColor("TableHeader.background"))
-      setForeground(UIManager.getColor("TableHeader.foreground"))
+      val header = t.getTableHeader
+      //setBackground(UIManager.getColor("TableHeader.background"))
+      //setForeground(UIManager.getColor("TableHeader.foreground"))
+      setForeground(header.getForeground)
+      setBackground(header.getBackground)
       setBorder(UIManager.getBorder("TableHeader.cellBorder"))
       setFont(UIManager.getFont("TableHeader.font"))
       setHorizontalAlignment(0) //setHorizontalAlignment(CENTER)

@@ -1,3 +1,7 @@
+import AssemblyKeys._ // put this at the top of the file
+
+seq(assemblySettings: _*)
+
 name := "Nemo"
 
 version := "1.0"
@@ -15,6 +19,8 @@ scalacOptions ++= Seq("-deprecation")
 mainClass in (Compile, run) := Some("BasicNemoTest")
 
 // mainClass in (Compile, run) := Some("GameOfLife")
+
+mainClass := Some("BasicNemoTest")
 
 fork in run := true
 

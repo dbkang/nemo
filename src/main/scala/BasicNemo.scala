@@ -288,14 +288,17 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
       if (choice == FileChooser.Result.Approve)
         NemoTable.saveFile(nemo.t, d.selectedFile)
     }        
-
+    minimumSize = preferredSize
+    maximumSize = preferredSize
   }
 }
   
 
 object BasicNemoTest extends SimpleSwingApplication {
-  UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
   def top = new MainFrame {
+    //UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel")
+    UIManager.setLookAndFeel("com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel")
+    //UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     title = "NemoCalc"
     val nemo = new BasicNemo(NemoTable(512,64))
     contents = NemoContainer(nemo)
