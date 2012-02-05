@@ -8,6 +8,9 @@ import scala.collection.mutable.Buffer
 import scala.collection.mutable.Stack
 import scala.xml.NodeSeq
 import scala.xml.XML
+import scala.xml.Utility
+import scala.xml.Utility
+import scala.collection.mutable.StringBuilder
 import java.io.File
 
 object NemoUtil {
@@ -67,7 +70,8 @@ class FormulaRenderer extends DefaultTableCellRenderer {
           //println("Old width: " + col.getWidth)
           //println("Column number: " + c.column)
           col.setPreferredWidth(math.max(col.getPreferredWidth, width))
-          t.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
+          //t.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
+          t.setRowHeight(c.row, NemoUtil.newRowHeight(height, height))
           setIcon(icon)
         }      
         else {
@@ -103,25 +107,26 @@ object NemoTable {
     NemoParser.nemoTableReferenced = t
     t
   }
+
   def apply(xml:NodeSeq) = {
     val attribs = xml(0).attributes
     val table = try {
-      val rows = attribs("rows")(0).toString.toInt
-      val cols = attribs("cols")(0).toString.toInt
+      val rows = attribs("rows")(0).text.toInt
+      val cols = attribs("cols")(0).text.toInt
       val t = new NemoTable(rows, cols)
       NemoParser.nemoTableReferenced = t
       xml(0).child.foreach(cell => {
         if (cell.label == "cell") {
-          val row = cell.attributes("row")(0).toString.toInt
-          val col = cell.attributes("col")(0).toString.toInt
-          t.setFormula(row, col, cell.attributes("formula")(0).toString)
+          val row = cell.attributes("row")(0).text.toInt
+          val col = cell.attributes("col")(0).text.toInt
+          t.setFormula(row, col, cell.attributes("formula")(0).text)
         }
       })
       t.repaint
       t
     }
     catch {
-      case _ => new NemoTable(64, 512)
+      case _ => new NemoTable(512, 64)
     }
     NemoParser.nemoTableReferenced = table
     table
@@ -277,14 +282,14 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
     }
     contents += Button("Open") {
       val d = new FileChooser
-      val choice = d.showOpenDialog(this)
+      val choice = d.showOpenDialog(null)
       if (choice == FileChooser.Result.Approve)
         NemoTable.openFile(d.selectedFile).foreach(t2 => loadNemo(new BasicNemo(t2)))
     }        
 
     contents += Button("Save") {
       val d = new FileChooser
-      val choice = d.showSaveDialog(this)
+      val choice = d.showSaveDialog(null)
       if (choice == FileChooser.Result.Approve)
         NemoTable.saveFile(nemo.t, d.selectedFile)
     }        
@@ -303,6 +308,7 @@ object BasicNemoTest extends SimpleSwingApplication {
     val nemo = new BasicNemo(NemoTable(512,64))
     contents = NemoContainer(nemo)
     //contents = nemo
+    centerOnScreen
   }
 }
 
