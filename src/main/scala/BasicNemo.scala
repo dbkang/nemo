@@ -236,40 +236,41 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
   }
 }
 
-class BasicNemo(val t:NemoTable) extends ScrollPane(t) {
-  val rh = new NemoRowHeader(t)
-  rowHeaderView = rh
-  t.rowHeader = rh
-}
-
 object NemoContainer {
-  def apply(n:BasicNemo) = {
+  def apply(t:NemoTable) = {
     val nc = new NemoContainer
-    nc.loadNemo(n)
+    nc.loadNemo(t)
     nc
   }
 }
 
 class NemoContainer extends BoxPanel(Orientation.Vertical) {
-  var nemo:BasicNemo = null
-  def nemoIndex = contents.indexOf(nemo)
-  def loadNemo(n:BasicNemo) {
+  class BasicNemo(val t:NemoTable) extends ScrollPane(t) {
+    val rh = new NemoRowHeader(t)
+    rowHeaderView = rh
+    t.rowHeader = rh
+  }
+
+  private var bNemo:BasicNemo = null
+  def nemo = if (bNemo == null) null else bNemo.t
+  def nemoIndex = contents.indexOf(bNemo)
+  def loadNemo(t:NemoTable) {
     val i = nemoIndex
     if (i > -1) contents.remove(nemoIndex)
-    contents += n
-    nemo = n
+    bNemo = new BasicNemo(t)
+    contents += bNemo
     revalidate
     repaint
   }
   contents += new FlowPanel {
     contents += Button("Undo") {
-      nemo.t.undo
+      nemo.undo
     }
     contents += Button("Redo") {
-      nemo.t.redo
+      nemo.redo
     }
     contents += Button("Print") {
-      println(nemo.t.toNodeSeq)
+      println(nemo.toNodeSeq)
     }
     contents += Button("Load Demo") {
       val demo = <nemotable rows="5" cols="5">
@@ -278,20 +279,20 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
       <cell row="2" col="0" formula="a1+a2"/>
       </nemotable>
       println(demo)
-      loadNemo(new BasicNemo(NemoTable(demo)))
+      loadNemo(NemoTable(demo))
     }
     contents += Button("Open") {
       val d = new FileChooser
       val choice = d.showOpenDialog(null)
       if (choice == FileChooser.Result.Approve)
-        NemoTable.openFile(d.selectedFile).foreach(t2 => loadNemo(new BasicNemo(t2)))
+        NemoTable.openFile(d.selectedFile).foreach(t2 => loadNemo(t2))
     }        
 
     contents += Button("Save") {
       val d = new FileChooser
       val choice = d.showSaveDialog(null)
       if (choice == FileChooser.Result.Approve)
-        NemoTable.saveFile(nemo.t, d.selectedFile)
+        NemoTable.saveFile(nemo, d.selectedFile)
     }        
     minimumSize = preferredSize
     maximumSize = preferredSize
@@ -305,7 +306,7 @@ object BasicNemoTest extends SimpleSwingApplication {
     UIManager.setLookAndFeel("com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel")
     //UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     title = "NemoCalc"
-    val nemo = new BasicNemo(NemoTable(512,64))
+    val nemo = new NemoTable(512,64)
     contents = NemoContainer(nemo)
     //contents = nemo
     centerOnScreen

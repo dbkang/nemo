@@ -66,7 +66,7 @@ object NemoParser extends StandardTokenParsers {
   var nemoTableReferenced:NemoTable = null
   
   override val lexical = ExprLexical
-  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")")
+  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}")
   //lexical.reserved ++= List("url")
   val numericLiteral = numericLit ^^ {
     i => if (i.contains(".")) ELit(NemoDouble(i.toDouble)) else ELit(NemoInt(i.toInt))
