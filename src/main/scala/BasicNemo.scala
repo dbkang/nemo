@@ -64,7 +64,7 @@ class FormulaRenderer extends DefaultTableCellRenderer {
           val icon = new ImageIcon(new URL(v2.asInstanceOf[NemoImageURL].value))
           val height = icon.getIconHeight
           val width = icon.getIconWidth
-          val t = NemoParser.nemoTableReferenced
+          val t = NemoPreContext.nemoTableReferenced //NemoParser.nemoTableReferenced
           val col = t.peer.getColumnModel.getColumn(c.column)
           //println("New width: " + width)
           //println("Old width: " + col.getWidth)
@@ -104,7 +104,7 @@ object NemoTable {
 
   def apply(rows:Int, cols:Int) = {
     val t = new NemoTable(rows, cols)
-    NemoParser.nemoTableReferenced = t
+    NemoPreContext.nemoTableReferenced = t
     t
   }
 
@@ -114,7 +114,7 @@ object NemoTable {
       val rows = attribs("rows")(0).text.toInt
       val cols = attribs("cols")(0).text.toInt
       val t = new NemoTable(rows, cols)
-      NemoParser.nemoTableReferenced = t
+      NemoPreContext.nemoTableReferenced = t
       xml(0).child.foreach(cell => {
         if (cell.label == "cell") {
           val row = cell.attributes("row")(0).text.toInt
@@ -128,7 +128,7 @@ object NemoTable {
     catch {
       case _ => new NemoTable(512, 64)
     }
-    NemoParser.nemoTableReferenced = table
+    NemoPreContext.nemoTableReferenced = table
     table
   }
 } 
@@ -306,7 +306,7 @@ object BasicNemoTest extends SimpleSwingApplication {
     UIManager.setLookAndFeel("com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel")
     //UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     title = "NemoCalc"
-    val nemo = new NemoTable(512,64)
+    val nemo = NemoTable(512,64)
     contents = NemoContainer(nemo)
     //contents = nemo
     centerOnScreen

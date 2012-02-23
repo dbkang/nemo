@@ -37,12 +37,14 @@ class NemoCell(val row:Int, val column:Int) {
   def findPrecedents(e:Expr):Seq[NemoCell] = {
     e match {
       case ELit(_) => Seq()
-      case ERef(ref) => NemoParser.refToNemoCell(ref).toList
+      case ERef(ref) => NemoPreContext.refToNemoCell(ref).toList
       case EAdd(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case ESub(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EMul(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EDiv(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EApply(f, a) => findPrecedents(a)
+      case EFun(_,_) => Seq()
+      case EList(es) => es.flatMap(findPrecedents _)
     }
   }  
 
@@ -63,7 +65,7 @@ class NemoCell(val row:Int, val column:Int) {
   def address = NemoUtil.columnName(column) + row.toString
   def value = cachedValue //parsed.flatMap(_.eval)
   def calculate:Unit = {
-    cachedValue = parsed.flatMap(_.eval)
+    cachedValue = parsed.flatMap(_.eval(NormalContext(NemoPreContext)))
     //NemoParser.nemoTableReferenced.updateCell(row, column)
     //NemoParser.nemoTableReferenced.model.fireTableCellUpdated(row, column)
     dependents.foreach(_.calculate)
@@ -125,3 +127,28 @@ case class NemoImageURL(val value:String) extends NemoValue {
   def valueType = "ImageURL"
   override def toString = "ImageURL: " + value
 }
+
+// TODO: Somehow figure out this context issue.  Right now I'm not sure how to handle
+// the fact that the context for the function changes every time you recalculate.  How
+// do you automatically cache some results of the calculations and not others (depending
+// on the dependency graph) while keeping the context constant?  Do you have to rebuild
+// the closure every time?
+case class NemoFunction(val value:EFun, val context: NemoContext) extends NemoValue {
+  def valueType = "Function"
+}  
+  
+
+// blank value
+case object NemoUnit extends NemoValue {
+  def valueType = "Unit"
+  def value = ();
+  override def toString = ""
+}
+
+case class NemoList(val value:Seq[NemoValue]) extends NemoValue with Seq[NemoValue] {
+  def valueType = "List"
+  def apply(idx: Int) = value.apply(idx)
+  def length = value.length
+  def iterator = value.iterator
+}
+
