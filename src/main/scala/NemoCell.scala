@@ -45,6 +45,7 @@ class NemoCell(val row:Int, val column:Int) {
       case EApply(f, a) => findPrecedents(a)
       case EFun(_,_) => Seq()
       case EList(es) => es.flatMap(findPrecedents _)
+      case EIf(c, e1, e2) => findPrecedents(c) ++ findPrecedents(e1) ++ findPrecedents(e2)
     }
   }  
 

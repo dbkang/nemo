@@ -22,6 +22,22 @@ case class SLet(b:String, e: Expr) extends Statement {
   }
 }
 
+case class EIf(cond:Expr, e1:Expr, e2:Expr) extends Expr {
+  def eval(c:NemoContext):Option[NemoValue] = {
+    val x = cond.eval(c)
+    if (x match {
+      case Some(NemoInt(v)) => v != 0
+      case Some(NemoDouble(v)) => v != 0.0
+      case Some(NemoString(v)) => v != ""
+      case Some(NemoUnit) => false
+      case None => false
+      case Some(NemoError(_)) => false
+      case Some(NemoList(Seq())) => false
+      case _ => true
+    }) e1.eval(c) else e2.eval(c)
+  }
+}
+
 case class ELit(v:NemoValue) extends Expr {
   def eval(c: NemoContext) = Some(v)
 }
@@ -161,7 +177,7 @@ object NemoParser extends StandardTokenParsers {
   
   override val lexical = ExprLexical
   lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}", ",")
-  lexical.reserved ++= List("let", "fun")
+  lexical.reserved ++= List("let", "fun","true", "false", "if", "else")
   val numericLiteral = numericLit ^^ {
     i => if (i.contains(".")) ELit(NemoDouble(i.toDouble)) else ELit(NemoInt(i.toInt))
   }
@@ -170,20 +186,27 @@ object NemoParser extends StandardTokenParsers {
     chainl1(elementParser ^^ {e => Seq(e)}, elementParser, (separator ^^^ {(l:Seq[T], e:T) => l :+ e }))
 
   val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
+  val booleanLiteral = "true" | "false" 
+
   def funCall:Parser[Expr] = ident ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
   val ref = ident ^^ ERef
   def factor:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | stringLiteral | funCall | ref 
   def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)
   def subexp = term * ("+" ^^^ EAdd | "-" ^^^ ESub)
 
+  def ifExp = ("if" ~> "(" ~> expr <~ ")") ~ expr ~ ("else" ~> expr) ^^ {
+    case cond ~ e1 ~ e2 => EIf(cond, e1, e2)
+  }
 
   def exprList = sequencer(subexp, ",") ^^ { EList(_)}
 //  def exprList = chainl1(subexp ^^ { e:Expr => EList(Seq(e)) }, subexp, ("," ^^^ EList.append _))
 
-  def expr:Parser[Expr] = subexp | exprList | funDef
+  def expr:Parser[Expr] = subexp | exprList | funDef | ifExp
+
   def sLet = ("let" ~> ident <~ "=") ~ expr ^^ {
     case b ~ e => SLet(b,e)
   }
+
   def sExpr = expr ^^ SExpr
   def stmt = sLet | sExpr
 
@@ -195,8 +218,6 @@ object NemoParser extends StandardTokenParsers {
   def funDef = "fun" ~> paramList ~ stmtBlock ^^ {
     case pl ~ sb => EFun(pl, sb)
   }
-
-  //def statement = expr <~ ";" | 
 
   def apply(str:String) = {
     println("Parsing " + str)
