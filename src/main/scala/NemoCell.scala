@@ -91,7 +91,7 @@ trait NemoValue {
 
 case class NemoInt(val value:Int) extends NemoValue {
   def valueType = "Int"
-  def convert(a:NemoValue):Option[NemoInt] = if (a.isInstanceOf[NemoInt]) Some(a.asInstanceOf[NemoInt]) else None    
+  def convert(a:NemoValue):Option[NemoInt] = a match { case v:NemoInt => Some(v) case _ => None }
   override def +(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
   override def *(b:NemoValue) = convert(b).map(a => NemoInt(a.value * value)).getOrElse(NemoError("Not supported"))
   override def /(b:NemoValue) = convert(b).map(a => NemoInt(value / a.value)).getOrElse(NemoError("Not supported"))
@@ -101,11 +101,11 @@ case class NemoInt(val value:Int) extends NemoValue {
 case class NemoDouble(val value:Double) extends NemoValue {
   def valueType = "Double"
   def convert(a:NemoValue):Option[NemoDouble] = {
-    if (a.isInstanceOf[NemoDouble])
-      Some(a.asInstanceOf[NemoDouble])
-    else if (a.isInstanceOf[NemoInt])
-      Some(NemoDouble(a.asInstanceOf[NemoInt].value.toDouble))
-    else None
+    a match {
+      case v:NemoDouble => Some(v)
+      case NemoInt(v) => Some(NemoDouble(v.toDouble))
+      case _ => None
+    }
   }
   override def +(b:NemoValue) = convert(b).map(a => NemoDouble(a.value + value)).getOrElse(NemoError("Not supported"))
   override def *(b:NemoValue) = convert(b).map(a => NemoDouble(a.value * value)).getOrElse(NemoError("Not supported"))
@@ -136,8 +136,16 @@ case class NemoImageURL(val value:String) extends NemoValue {
 // the closure every time?
 case class NemoFunction(val value:EFun, val context: NemoContext) extends NemoValue {
   def valueType = "Function"
+  override def toString = "Function"
 }  
-  
+
+// Sort of like a function, but built-in special forms are passed not evaluated arguments
+// but raw parsed expressions - this is necessary to implement something like if/cond,
+// where some part of the expression should not be evaluated
+case class NemoSpecialForm(val value:(NemoContext,EList)=>Option[NemoValue]) extends NemoValue {
+  def valueType = "SpecialForm"
+  override def toString = "SpecialForm"
+}
 
 // blank value
 case object NemoUnit extends NemoValue {

@@ -86,88 +86,72 @@ case class EList(val es: Seq[Expr]) extends Expr {
 }
 
 
-object EApply {
-  var functions:PartialFunction[String,NemoValue=>Option[NemoValue]] = null
-  addPartial { case _ => (a => None) }
-
-  addPartial {
-    case "url" => { s => Some(NemoImageURL(s.toString)) }
-  }
-
-  addPartial {
-    case "command" => { c => {
-      import scala.sys.process._
-      var stringBuffer:String = ""
-      c.toString ! ProcessLogger {
-        output => stringBuffer += (output + "\n")
-      }
-      Some(NemoString(stringBuffer))
-    }}
-  }
-
-  def addPartial(fun:PartialFunction[String,NemoValue=>Option[NemoValue]]) = {
-    if (functions == null)
-      functions = fun
-    else
-      functions = fun.orElse(functions)
-  }
-}
-
-case class EApply(fun:String, args:EList) extends Expr {
+case class EApply(fun:Expr, args:EList) extends Expr {
   def eval(c:NemoContext) = {
-    val cf = c(fun)
-    if (cf.isEmpty) {
-      for (argsEval <- args.eval(c);
-           arg <- argsEval.headOption;
-           result <- EApply.functions(fun)(arg)) yield result
-      //args.eval.flatMap(a => EApply.functions(fun)(a))
+    val cf = fun.eval(c)
+    cf match {
+      case None => Some(NemoError("Function not found"))
+      case Some(NemoSpecialForm(f)) => f(c, args)      
+      //      for (argsEval <- args.eval(c);
+      //     arg <- argsEval.headOption;
+      //     result <- EApply.functions(fun)(arg)) yield result
+      case Some(NemoFunction(EFun(paramList, body), context)) =>
+        if (args.length == paramList.length)
+          for (argsEval <- args.eval(c);
+               v <- {
+                 val c = NormalContext(context)
+                 var lastVal:Option[NemoValue] = None
+                 c.bindings ++= paramList.zip(argsEval)
+                 body.foreach {s:Statement => lastVal = s.eval(c)}
+                 lastVal
+               }) yield v
+        else Some(NemoError("Wrong # of arguments"))
+      case _ => Some(NemoError("Not a function"))
     }
-    else if (cf.get.valueType == "Function") {
-      val f = cf.get.asInstanceOf[NemoFunction]
-      val context = f.context
-      val body = f.value.body
-      val paramList = f.value.paramList
-      if (args.length == paramList.length)
-        for (argsEval <- args.eval(c);
-             v <- {
-               val c = NormalContext(context)
-               var lastVal:Option[NemoValue] = None
-               c.bindings ++= paramList.zip(argsEval)
-               body.foreach {s:Statement => lastVal = s.eval(c)}
-               lastVal
-             }) yield v
-      else Some(NemoError("Wrong # of arguments"))
-    }
-    else Some(NemoError("Not a function"))
   }
 }
-
-trait NemoContext {
-  def apply(name:String):Option[NemoValue]
-  def add(name:String, value:NemoValue)
-}
-
-// this is the base context/scope that simply defines cell references
-object NemoPreContext extends NemoContext {
-  var nemoTableReferenced:NemoTable = null
-  def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
-  def apply(name:String) = refToNemoCell(name).flatMap(_.value)
-  def add(name: String, value:NemoValue) = ()
-}
-
-object NormalContext {
-  def apply(c: NemoContext) = new NormalContext(c)
-}
-
-class NormalContext(val precedingContext:NemoContext) extends NemoContext {
+  
+abstract class NemoContext {
   val bindings = Map[String, NemoValue]()
-  def apply(name:String) = bindings.get(name).orElse(precedingContext(name))
+  def apply(name:String):Option[NemoValue]
   def add(name: String, value:NemoValue) = {
     bindings += ((name, value))
   }
 }
-  
 
+// this is the base context/scope that simply defines cell references
+case object NemoPreContext extends NemoContext {
+  bindings += (("url", NemoSpecialForm(
+    (context, args) => {
+      args.es(0).eval(context).map(v => NemoImageURL(v.toString))
+    }
+  )))
+
+  bindings += (("command", NemoSpecialForm(
+    (context, args) => {
+      import scala.sys.process._
+      var stringBuffer:String = ""
+      args.es(0).eval(context).map {
+        v:NemoValue => v.toString ! ProcessLogger {
+          output => stringBuffer += (output + "\n")
+        }
+        NemoString(stringBuffer)
+      }
+    }
+  )))
+
+  var nemoTableReferenced:NemoTable = null
+  def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
+  def apply(name:String) = bindings.get(name).orElse(refToNemoCell(name).flatMap(_.value))
+}
+
+//object NormalContext {
+//  def apply(c: NemoContext) = new NormalContext(c)
+//}
+
+case class NormalContext(precedingContext:NemoContext) extends NemoContext {
+  def apply(name:String) = bindings.get(name).orElse(precedingContext(name))
+}
 
 
 // Using Parser Combinators to define syntax/parsing rules of Nemo formulas declaratively.
@@ -188,9 +172,10 @@ object NemoParser extends StandardTokenParsers {
   val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
   val booleanLiteral = "true" | "false" 
 
-  def funCall:Parser[Expr] = ident ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
+  def anonFunCall:Parser[Expr] = ("(" ~> expr <~ ")") ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
+  def funCall:Parser[Expr] = ref ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
   val ref = ident ^^ ERef
-  def factor:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | stringLiteral | funCall | ref 
+  def factor:Parser[Expr] =  anonFunCall | funCall | "(" ~> expr <~ ")" | numericLiteral | stringLiteral | ref
   def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)
   def subexp = term * ("+" ^^^ EAdd | "-" ^^^ ESub)
 
@@ -201,7 +186,7 @@ object NemoParser extends StandardTokenParsers {
   def exprList = sequencer(subexp, ",") ^^ { EList(_)}
 //  def exprList = chainl1(subexp ^^ { e:Expr => EList(Seq(e)) }, subexp, ("," ^^^ EList.append _))
 
-  def expr:Parser[Expr] = subexp | exprList | funDef | ifExp
+  def expr:Parser[Expr] = ifExp | funDef | subexp | exprList
 
   def sLet = ("let" ~> ident <~ "=") ~ expr ^^ {
     case b ~ e => SLet(b,e)
