@@ -46,6 +46,7 @@ class NemoCell(val row:Int, val column:Int) {
       case EFun(_,_) => Seq()
       case EList(es) => es.flatMap(findPrecedents _)
       case EIf(c, e1, e2) => findPrecedents(c) ++ findPrecedents(e1) ++ findPrecedents(e2)
+      case EEq(l, r) => findPrecedents(l) ++ findPrecedents(r)
     }
   }  
 
@@ -85,6 +86,7 @@ trait NemoValue {
   def *(b:NemoValue):NemoValue = NemoError("Not supported")
   def /(b:NemoValue):NemoValue = NemoError("Not supported")
   def -(b:NemoValue):NemoValue = NemoError("Not supported")
+//  def ==(b:NemoValue):NemoValue = this == b
   override def toString = value.toString
 }
 
@@ -159,5 +161,15 @@ case class NemoList(val value:Seq[NemoValue]) extends NemoValue with Seq[NemoVal
   def apply(idx: Int) = value.apply(idx)
   def length = value.length
   def iterator = value.iterator
+  override def head = value.head
+  override def tail = NemoList(value.tail)
 }
 
+case class NemoBoolean(val value:Boolean) extends NemoValue {
+  def valueType = "Boolean"
+}
+
+object NemoList {
+  def nil = NemoList(Nil)
+  def cons(h:NemoValue, t:Seq[NemoValue]) = NemoList(h +: t)
+}

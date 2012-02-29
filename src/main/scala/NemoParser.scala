@@ -33,6 +33,7 @@ case class EIf(cond:Expr, e1:Expr, e2:Expr) extends Expr {
       case None => false
       case Some(NemoError(_)) => false
       case Some(NemoList(Seq())) => false
+      case Some(NemoBoolean(v)) => v
       case _ => true
     }) e1.eval(c) else e2.eval(c)
   }
@@ -58,6 +59,10 @@ case class EDiv(l:Expr, r:Expr) extends Expr {
   def eval(c: NemoContext) = for (i <- l.eval(c); j <- r.eval(c)) yield i / j
 }
 
+case class EEq(l:Expr, r:Expr) extends Expr {
+  def eval(c: NemoContext) = for (i <- l.eval(c); j <- r.eval(c)) yield NemoBoolean(i == j)
+}
+
 case class ERef(r:String) extends Expr {
   def eval(c: NemoContext) = c(r)
 }
@@ -71,7 +76,7 @@ case class EFun(paramList:Seq[String], body:Seq[Statement]) extends Expr {
 }
 
 object EList {
-  def cons(head:Expr, tail:EList) = EList(head +: tail.es)
+  //def cons(head:Expr, tail:EList) = EList(head +: tail.es)
   def append(l:EList, t:Expr) = EList(l.es :+ t)
 }
 
@@ -92,20 +97,17 @@ case class EApply(fun:Expr, args:EList) extends Expr {
     cf match {
       case None => Some(NemoError("Function not found"))
       case Some(NemoSpecialForm(f)) => f(c, args)      
-      //      for (argsEval <- args.eval(c);
-      //     arg <- argsEval.headOption;
-      //     result <- EApply.functions(fun)(arg)) yield result
       case Some(NemoFunction(EFun(paramList, body), context)) =>
-        if (args.length == paramList.length)
-          for (argsEval <- args.eval(c);
-               v <- {
-                 val c = NormalContext(context)
-                 var lastVal:Option[NemoValue] = None
-                 c.bindings ++= paramList.zip(argsEval)
-                 body.foreach {s:Statement => lastVal = s.eval(c)}
-                 lastVal
-               }) yield v
-        else Some(NemoError("Wrong # of arguments"))
+        //if (args.length == paramList.length)
+        for (argsEval <- args.eval(c);
+             v <- {
+               val c = NormalContext(context)
+               var lastVal:Option[NemoValue] = None
+               c.bindings ++= paramList.zip(argsEval)
+               c.bindings += (("args", NemoList(argsEval.takeRight(args.length - paramList.length))))
+               body.foreach {s:Statement => lastVal = s.eval(c)}
+               lastVal
+             }) yield v
       case _ => Some(NemoError("Not a function"))
     }
   }
@@ -121,6 +123,8 @@ abstract class NemoContext {
 
 // this is the base context/scope that simply defines cell references
 case object NemoPreContext extends NemoContext {
+  bindings += (("nil", NemoList.nil))
+
   bindings += (("url", NemoSpecialForm(
     (context, args) => {
       args.es(0).eval(context).map(v => NemoImageURL(v.toString))
@@ -139,6 +143,13 @@ case object NemoPreContext extends NemoContext {
       }
     }
   )))
+
+  bindings += (("url", NemoSpecialForm(
+    (context, args) => {
+      args.es(0).eval(context).map(v => NemoImageURL(v.toString))
+    }
+  )))
+
 
   var nemoTableReferenced:NemoTable = null
   def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
@@ -160,14 +171,17 @@ case class NormalContext(precedingContext:NemoContext) extends NemoContext {
 object NemoParser extends StandardTokenParsers {
   
   override val lexical = ExprLexical
-  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}", ",")
-  lexical.reserved ++= List("let", "fun","true", "false", "if", "else")
+  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}", ",", "<", ">")
+  lexical.reserved ++= List("let", "fun","true", "false", "if", "else" )
   val numericLiteral = numericLit ^^ {
     i => if (i.contains(".")) ELit(NemoDouble(i.toDouble)) else ELit(NemoInt(i.toInt))
   }
   // takes a parser and a separator and returns a parser that parses a list as a Seq
   def sequencer[T](elementParser:Parser[T], separator:String):Parser[Seq[T]] =
-    chainl1(elementParser ^^ {e => Seq(e)}, elementParser, (separator ^^^ {(l:Seq[T], e:T) => l :+ e }))
+    opt(chainl1(elementParser ^^ {e => Seq(e)}, elementParser, (separator ^^^ {(l:Seq[T], e:T) => l :+ e }))) ^^ {
+      case None => Seq[T]()
+      case Some(x) => x
+    }
 
   val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
   val booleanLiteral = "true" | "false" 
@@ -183,10 +197,11 @@ object NemoParser extends StandardTokenParsers {
     case cond ~ e1 ~ e2 => EIf(cond, e1, e2)
   }
 
-  def exprList = sequencer(subexp, ",") ^^ { EList(_)}
-//  def exprList = chainl1(subexp ^^ { e:Expr => EList(Seq(e)) }, subexp, ("," ^^^ EList.append _))
+  def equalExp = (subexp <~ "=") ~ subexp ^^ { case l ~ r => EEq(l, r) }
 
-  def expr:Parser[Expr] = ifExp | funDef | subexp | exprList
+  def exprList = sequencer(subexp, ",") ^^ { EList(_)}
+
+  def expr:Parser[Expr] = ifExp | funDef | equalExp | subexp // | exprList
 
   def sLet = ("let" ~> ident <~ "=") ~ expr ^^ {
     case b ~ e => SLet(b,e)
@@ -197,8 +212,6 @@ object NemoParser extends StandardTokenParsers {
 
   def stmtBlock = "{" ~> sequencer(stmt, ";") <~ "}"
   def paramList = "(" ~> sequencer(ident, ",") <~ ")"
-//  def stmtBlock = "{" ~> (stmt ^^ { Seq(_)} ) * (";" ^^^ { (l, s) => l.append(s) }) <~ "}"
-//  def paramList = "(" ~> (ident ^^ { Seq(_)} ) * ("," ^^^ { (l:Seq[String], p:String) => l.append(p) }) <~ ")"
 
   def funDef = "fun" ~> paramList ~ stmtBlock ^^ {
     case pl ~ sb => EFun(pl, sb)
