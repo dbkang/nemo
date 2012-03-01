@@ -131,15 +131,34 @@ case class NemoImageURL(val value:String) extends NemoValue {
   override def toString = "ImageURL: " + value
 }
 
+trait NemoFunction extends NemoValue {
+  def apply(args:NemoList):Option[NemoValue]
+}  
+
 // TODO: Somehow figure out this context issue.  Right now I'm not sure how to handle
 // the fact that the context for the function changes every time you recalculate.  How
 // do you automatically cache some results of the calculations and not others (depending
 // on the dependency graph) while keeping the context constant?  Do you have to rebuild
 // the closure every time?
-case class NemoFunction(val value:EFun, val context: NemoContext) extends NemoValue {
+// TODO: Is there any way to make tail call elimination work?
+case class NemoUserFunction(val value:EFun, val context: NemoContext) extends NemoFunction {
   def valueType = "Function"
   override def toString = "Function"
-}  
+  def apply(args:NemoList) = {
+    val c = NormalContext(context)
+    var lastVal:Option[NemoValue] = None
+    c.bindings ++= value.paramList.zip(args)
+    c.bindings += (("args", NemoList(args.takeRight(args.length - value.paramList.length))))
+    value.body.foreach {s:Statement => lastVal = s.eval(c)}
+    lastVal
+  }
+}
+
+case class NemoPrimitive(val name:String, val value:NemoList=>Option[NemoValue]) extends NemoFunction {
+  def valueType = "Primitive"
+  override def toString = "#<" + name + ">"
+  def apply(args:NemoList) = value(args)
+}
 
 // Sort of like a function, but built-in special forms are passed not evaluated arguments
 // but raw parsed expressions - this is necessary to implement something like if/cond,

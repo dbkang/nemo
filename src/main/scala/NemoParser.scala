@@ -71,8 +71,8 @@ case class ERef(r:String) extends Expr {
 //  def eval(c: NemoContext) = {
     
 
-case class EFun(paramList:Seq[String], body:Seq[Statement]) extends Expr {
-  def eval(c: NemoContext) = Some(NemoFunction(this, c))
+case class EFun(val paramList:Seq[String], val body:Seq[Statement]) extends Expr {
+  def eval(c: NemoContext) = Some(NemoUserFunction(this, c))
 }
 
 object EList {
@@ -90,24 +90,13 @@ case class EList(val es: Seq[Expr]) extends Expr {
   def length = es.length
 }
 
-
 case class EApply(fun:Expr, args:EList) extends Expr {
   def eval(c:NemoContext) = {
     val cf = fun.eval(c)
     cf match {
       case None => Some(NemoError("Function not found"))
       case Some(NemoSpecialForm(f)) => f(c, args)      
-      case Some(NemoFunction(EFun(paramList, body), context)) =>
-        //if (args.length == paramList.length)
-        for (argsEval <- args.eval(c);
-             v <- {
-               val c = NormalContext(context)
-               var lastVal:Option[NemoValue] = None
-               c.bindings ++= paramList.zip(argsEval)
-               c.bindings += (("args", NemoList(argsEval.takeRight(args.length - paramList.length))))
-               body.foreach {s:Statement => lastVal = s.eval(c)}
-               lastVal
-             }) yield v
+      case Some(f:NemoFunction) => args.eval(c).flatMap(f.apply _)
       case _ => Some(NemoError("Not a function"))
     }
   }
@@ -123,34 +112,27 @@ abstract class NemoContext {
 
 // this is the base context/scope that simply defines cell references
 case object NemoPreContext extends NemoContext {
+  def addPrimitive(name:String, function:NemoList=>Option[NemoValue]) = {
+    bindings += ((name, NemoPrimitive(name, function)))
+  }
+
   bindings += (("nil", NemoList.nil))
 
-  bindings += (("url", NemoSpecialForm(
-    (context, args) => {
-      args.es(0).eval(context).map(v => NemoImageURL(v.toString))
-    }
-  )))
-
-  bindings += (("command", NemoSpecialForm(
-    (context, args) => {
-      import scala.sys.process._
-      var stringBuffer:String = ""
-      args.es(0).eval(context).map {
-        v:NemoValue => v.toString ! ProcessLogger {
-          output => stringBuffer += (output + "\n")
-        }
-        NemoString(stringBuffer)
+  addPrimitive("url", args => {
+    args.headOption.map(v => NemoImageURL(v.toString))
+  })
+               
+  addPrimitive("command", args => {
+    import scala.sys.process._
+    var stringBuffer:String = ""
+    args.headOption.map {
+      v:NemoValue => v.toString ! ProcessLogger {
+        output => stringBuffer += (output + "\n")
       }
+      NemoString(stringBuffer)
     }
-  )))
-
-  bindings += (("url", NemoSpecialForm(
-    (context, args) => {
-      args.es(0).eval(context).map(v => NemoImageURL(v.toString))
-    }
-  )))
-
-
+  })
+  
   var nemoTableReferenced:NemoTable = null
   def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
   def apply(name:String) = bindings.get(name).orElse(refToNemoCell(name).flatMap(_.value))
