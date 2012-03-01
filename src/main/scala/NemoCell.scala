@@ -147,8 +147,9 @@ case class NemoUserFunction(val value:EFun, val context: NemoContext) extends Ne
   def apply(args:NemoList) = {
     val c = NormalContext(context)
     var lastVal:Option[NemoValue] = None
-    c.bindings ++= value.paramList.zip(args)
-    c.bindings += (("args", NemoList(args.takeRight(args.length - value.paramList.length))))
+    val argsS = args.toSeqOption.get
+    c.bindings ++= value.paramList.zip(argsS)
+    c.bindings += (("args", NemoList(argsS.takeRight(argsS.length - value.paramList.length))))
     value.body.foreach {s:Statement => lastVal = s.eval(c)}
     lastVal
   }
@@ -168,27 +169,43 @@ case class NemoSpecialForm(val value:(NemoContext,EList)=>Option[NemoValue]) ext
   override def toString = "SpecialForm"
 }
 
-// blank value
-case object NemoUnit extends NemoValue {
-  def valueType = "Unit"
-  def value = ();
-  override def toString = ""
+trait NemoList extends NemoValue {
+  def length = 0
+  def toSeqOption:Option[Seq[NemoValue]]
+  def headOption:Option[NemoValue]
+  def tailOption:Option[NemoValue]
 }
 
-case class NemoList(val value:Seq[NemoValue]) extends NemoValue with Seq[NemoValue] {
-  def valueType = "List"
-  def apply(idx: Int) = value.apply(idx)
-  def length = value.length
-  def iterator = value.iterator
-  override def head = value.head
-  override def tail = NemoList(value.tail)
+// blank value
+case object NemoUnit extends NemoList {
+  def valueType = "Unit"
+  def value = ();
+  override def toString = "Nil"
+  def toSeqOption:Option[Seq[NemoValue]] = Some(Seq[NemoValue]())
+  def headOption = None
+  def tailOption = None
 }
+
 
 case class NemoBoolean(val value:Boolean) extends NemoValue {
   def valueType = "Boolean"
 }
 
 object NemoList {
-  def nil = NemoList(Nil)
+  def nil = NemoUnit
   def cons(h:NemoValue, t:Seq[NemoValue]) = NemoList(h +: t)
+  def apply(l:Seq[NemoValue]) = l.foldRight[NemoList](NemoUnit)(NemoCons.apply _)
+}
+
+case class NemoCons(var head: NemoValue, var tail:NemoValue) extends NemoList {
+  def valueType = "Cons"
+  def value = toSeqOption
+  def toSeqOption:Option[Seq[NemoValue]] = {
+    tail match {
+      case (t:NemoList) => t.toSeqOption.map { head +: _ }
+      case _ => None
+    }
+  }
+  def headOption = Some(head)
+  def tailOption = Some(tail)
 }

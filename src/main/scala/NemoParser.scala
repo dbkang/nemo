@@ -32,7 +32,6 @@ case class EIf(cond:Expr, e1:Expr, e2:Expr) extends Expr {
       case Some(NemoUnit) => false
       case None => false
       case Some(NemoError(_)) => false
-      case Some(NemoList(Seq())) => false
       case Some(NemoBoolean(v)) => v
       case _ => true
     }) e1.eval(c) else e2.eval(c)
