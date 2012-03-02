@@ -174,6 +174,7 @@ trait NemoList extends NemoValue {
   def toSeqOption:Option[Seq[NemoValue]]
   def headOption:Option[NemoValue]
   def tailOption:Option[NemoValue]
+  def apply(idx:Int):Option[NemoValue]
 }
 
 // blank value
@@ -184,6 +185,7 @@ case object NemoUnit extends NemoList {
   def toSeqOption:Option[Seq[NemoValue]] = Some(Seq[NemoValue]())
   def headOption = None
   def tailOption = None
+  def apply(idx:Int) = None
 }
 
 
@@ -208,4 +210,9 @@ case class NemoCons(var head: NemoValue, var tail:NemoValue) extends NemoList {
   }
   def headOption = Some(head)
   def tailOption = Some(tail)
+  def apply(idx:Int) = (idx, tail) match {
+    case (0, _) => Some(head)
+    case (x, y:NemoCons) => y(x - 1)
+    case _ => None
+  }
 }

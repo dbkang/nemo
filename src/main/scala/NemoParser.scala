@@ -140,6 +140,27 @@ case object NemoPreContext extends NemoContext {
        v <- f(fargs)) yield v
   })
 
+
+  addPrimitive("cons", args => {
+    for (head <- args(0);
+         tail <- args(1))
+    yield NemoCons(head,tail)
+  })
+
+  addPrimitive("head", args => {
+    args(0) match {
+      case Some(NemoCons(h, _)) => Some(h)
+      case _ => None
+    }
+  })
+
+  addPrimitive("tail", args => {
+    args(0) match {
+      case Some(NemoCons(_, t)) => Some(t)
+      case _ => None
+    }
+  })
+
   
   var nemoTableReferenced:NemoTable = null
   def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
