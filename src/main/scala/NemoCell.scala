@@ -199,7 +199,7 @@ object NemoList {
 
 case class NemoCons(var head: NemoValue, var tail:NemoValue) extends NemoList {
   def valueType = "Cons"
-  def value = toSeqOption
+  def value = (head.value, tail.value)
   def toSeqOption:Option[Seq[NemoValue]] = {
     tail match {
       case (t:NemoList) => t.toSeqOption.map { head +: _ }

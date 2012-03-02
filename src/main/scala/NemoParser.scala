@@ -131,6 +131,15 @@ case object NemoPreContext extends NemoContext {
       NemoString(stringBuffer)
     }
   })
+
+  addPrimitive("apply", args => {
+    for
+      ((f, fargs) <- (args.headOption, args.tailOption) match {
+        case (Some(f1:NemoFunction), Some(NemoCons(h:NemoList, t))) => Some((f1, h))
+        case _ => None };
+       v <- f(fargs)) yield v
+  })
+
   
   var nemoTableReferenced:NemoTable = null
   def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
