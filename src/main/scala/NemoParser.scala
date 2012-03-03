@@ -205,12 +205,12 @@ object NemoParser extends StandardTokenParsers {
     }
 
   val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
-  val booleanLiteral = "true" | "false" 
+  val booleanLiteral = "true" ^^ { s => ELit(NemoBoolean(true)) } | "false" ^^ { s => ELit(NemoBoolean(false)) }
 
   def anonFunCall:Parser[Expr] = ("(" ~> expr <~ ")") ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
   def funCall:Parser[Expr] = ref ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
   val ref = ident ^^ ERef
-  def factor:Parser[Expr] =  anonFunCall | funCall | "(" ~> expr <~ ")" | numericLiteral | stringLiteral | ref
+  def factor:Parser[Expr] =  anonFunCall | funCall | "(" ~> expr <~ ")" | numericLiteral | stringLiteral | booleanLiteral | ref
   def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)
   def subexp = term * ("+" ^^^ EAdd | "-" ^^^ ESub)
 
@@ -220,7 +220,7 @@ object NemoParser extends StandardTokenParsers {
 
   def equalExp = (subexp <~ "=") ~ subexp ^^ { case l ~ r => EEq(l, r) }
 
-  def exprList = sequencer(subexp, ",") ^^ { EList(_)}
+  def exprList = sequencer(expr, ",") ^^ { EList(_)}
 
   def expr:Parser[Expr] = ifExp | funDef | equalExp | subexp // | exprList
 

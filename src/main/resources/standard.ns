@@ -1,13 +1,18 @@
 let add = fun(a, b) {a + b};
+
 let minus = fun(a, b) {a - b};
+
 let list = fun() { args };
+
 let null? = fun(e) { typeof(e) = "Unit" };
+
 let map = fun(f, l) {
   if (null?(l))
     nil
   else
     cons(f(head(l)), map(f, tail(l)))
 };
+
 let filter = fun(f, l) {
   if (null?(l))
     nil
@@ -15,4 +20,20 @@ let filter = fun(f, l) {
     cons(head(l), filter(f, tail(l)))
   else
     filter(f, tail(l))
+};
+
+let not = fun(b) {
+  if (b) false else true
+};
+
+let compose = fun(f,g) {
+  fun() {f(apply(g, args))}
+};
+
+let append = fun(l1,l2) {
+  if (null?(l1))
+    l2
+  else
+    cons(head(l1),append(tail(l1),l2))
 }
+
