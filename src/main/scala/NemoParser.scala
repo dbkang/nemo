@@ -1,6 +1,10 @@
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.combinator.lexical.StdLexical
 import scala.collection.mutable.Map
+import scala.io.BufferedSource
+import scala.io.Source
+import scala.collection.immutable.PagedSeq
+import scala.util.parsing.input.StreamReader
 
 sealed abstract class Expr {
   def eval(c: NemoContext):Option[NemoValue]
@@ -140,7 +144,6 @@ case object NemoPreContext extends NemoContext {
        v <- f(fargs)) yield v
   })
 
-
   addPrimitive("cons", args => {
     for (head <- args(0);
          tail <- args(1))
@@ -161,7 +164,14 @@ case object NemoPreContext extends NemoContext {
     }
   })
 
-  
+  addPrimitive("typeof", args => {
+    args(0).map { v => NemoString(v.valueType) }
+  })
+
+  NemoParser.parseSourceFile(Source.fromURL(getClass.getResource("/standard.ns"))).map {
+    l => l.foreach { _.eval(this) }
+  }
+
   var nemoTableReferenced:NemoTable = null
   def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
   def apply(name:String) = bindings.get(name).orElse(refToNemoCell(name).flatMap(_.value))
@@ -221,7 +231,8 @@ object NemoParser extends StandardTokenParsers {
   def sExpr = expr ^^ SExpr
   def stmt = sLet | sExpr
 
-  def stmtBlock = "{" ~> sequencer(stmt, ";") <~ "}"
+  def stmtBlock = "{" ~> stmtList <~ "}"
+  def stmtList = sequencer(stmt, ";") <~ opt(";")
   def paramList = "(" ~> sequencer(ident, ",") <~ ")"
 
   def funDef = "fun" ~> paramList ~ stmtBlock ^^ {
@@ -229,13 +240,18 @@ object NemoParser extends StandardTokenParsers {
   }
 
   def apply(str:String) = {
-    println("Parsing " + str)
+    //println("Parsing " + str)
     phrase(expr)(new lexical.Scanner(str))
+  }
+
+  def parseSourceFile(f:BufferedSource) = {
+    phrase(stmtList)(new lexical.Scanner(StreamReader(f.bufferedReader)))
   }
 }
 
 object ExprLexical extends StdLexical {
   override def token = decimal | super.token
+  override def identChar = super.identChar | elem('?')
   def decimal = rep(digit) ~ '.' ~ rep1(digit) ^^ {
     case i ~ dot ~ d => NumericLit(i.mkString + "." + d.mkString)
   }

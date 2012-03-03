@@ -1,0 +1,18 @@
+let add = fun(a, b) {a + b};
+let minus = fun(a, b) {a - b};
+let list = fun() { args };
+let null? = fun(e) { typeof(e) = "Unit" };
+let map = fun(f, l) {
+  if (null?(l))
+    nil
+  else
+    cons(f(head(l)), map(f, tail(l)))
+};
+let filter = fun(f, l) {
+  if (null?(l))
+    nil
+  else if (f(head(l)))
+    cons(head(l), filter(f, tail(l)))
+  else
+    filter(f, tail(l))
+}
