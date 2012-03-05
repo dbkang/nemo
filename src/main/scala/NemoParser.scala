@@ -63,6 +63,12 @@ case class EAnd(l:Expr, r:Expr) extends Expr {
   }
 }
 
+case class EOr(l:Expr, r:Expr) extends Expr {
+  def eval(c: NemoContext) = {
+    l.eval(c).flatMap { v => if (v.toBoolean) Some(NemoBoolean(true)) else r.eval(c) }
+  }
+}
+
 case class ERef(r:String) extends Expr {
   def eval(c: NemoContext) = c(r)
 }
@@ -222,7 +228,7 @@ object NemoParser extends StandardTokenParsers {
   def binaryOperator(precedent:Int) = {
     precedent match {
       case 1 =>
-        "&&" ^^^ EAnd
+        "&&" ^^^ EAnd | "||" ^^^ EOr
       case 2 =>
         "=" ^^^ EEq | "==" ^^^ EEq
       case 3 =>

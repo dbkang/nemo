@@ -48,6 +48,7 @@ class NemoCell(val row:Int, val column:Int) {
       case EIf(c, e1, e2) => findPrecedents(c) ++ findPrecedents(e1) ++ findPrecedents(e2)
       case EEq(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EAnd(l, r) => findPrecedents(l) ++ findPrecedents(r)
+      case EOr(l, r) => findPrecedents(l) ++ findPrecedents(r)
     }
   }  
 
