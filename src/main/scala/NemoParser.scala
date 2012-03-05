@@ -29,16 +29,7 @@ case class SLet(b:String, e: Expr) extends Statement {
 case class EIf(cond:Expr, e1:Expr, e2:Expr) extends Expr {
   def eval(c:NemoContext):Option[NemoValue] = {
     val x = cond.eval(c)
-    if (x match {
-      case Some(NemoInt(v)) => v != 0
-      case Some(NemoDouble(v)) => v != 0.0
-      case Some(NemoString(v)) => v != ""
-      case Some(NemoUnit) => false
-      case None => false
-      case Some(NemoError(_)) => false
-      case Some(NemoBoolean(v)) => v
-      case _ => true
-    }) e1.eval(c) else e2.eval(c)
+    x.flatMap { v => if (v.toBoolean) e1.eval(c) else e2.eval(c) }
   }
 }
 
@@ -64,6 +55,12 @@ case class EDiv(l:Expr, r:Expr) extends Expr {
 
 case class EEq(l:Expr, r:Expr) extends Expr {
   def eval(c: NemoContext) = for (i <- l.eval(c); j <- r.eval(c)) yield NemoBoolean(i == j)
+}
+
+case class EAnd(l:Expr, r:Expr) extends Expr {
+  def eval(c: NemoContext) = {
+    l.eval(c).flatMap { v => if (!v.toBoolean) Some(NemoBoolean(false)) else r.eval(c) }
+  }
 }
 
 case class ERef(r:String) extends Expr {
@@ -192,7 +189,7 @@ case class NormalContext(precedingContext:NemoContext) extends NemoContext {
 object NemoParser extends StandardTokenParsers {
   
   override val lexical = ExprLexical
-  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}", ",", "<", ">")
+  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}", ",", "<", ">", "&&", "||", "==")
   lexical.reserved ++= List("let", "fun","true", "false", "if", "else" )
   val numericLiteral = numericLit ^^ {
     i => if (i.contains(".")) ELit(NemoDouble(i.toDouble)) else ELit(NemoInt(i.toInt))
@@ -210,19 +207,37 @@ object NemoParser extends StandardTokenParsers {
   def anonFunCall:Parser[Expr] = ("(" ~> expr <~ ")") ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
   def funCall:Parser[Expr] = ref ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
   val ref = ident ^^ ERef
-  def factor:Parser[Expr] =  anonFunCall | funCall | "(" ~> expr <~ ")" | numericLiteral | stringLiteral | booleanLiteral | ref
-  def term = factor * ("*" ^^^ EMul | "/" ^^^ EDiv)
-  def subexp = term * ("+" ^^^ EAdd | "-" ^^^ ESub)
+  def term:Parser[Expr] =  anonFunCall | funCall | "(" ~> expr <~ ")" | numericLiteral | stringLiteral | booleanLiteral | ref
 
   def ifExp = ("if" ~> "(" ~> expr <~ ")") ~ expr ~ ("else" ~> expr) ^^ {
     case cond ~ e1 ~ e2 => EIf(cond, e1, e2)
   }
 
-  def equalExp = (subexp <~ "=") ~ subexp ^^ { case l ~ r => EEq(l, r) }
-
   def exprList = sequencer(expr, ",") ^^ { EList(_)}
 
-  def expr:Parser[Expr] = ifExp | funDef | equalExp | subexp // | exprList
+  def expr:Parser[Expr] = ifExp | funDef | binaryOpExpr(minPrecedentLevel) | term // | exprList
+
+
+  // precedent
+  def binaryOperator(precedent:Int) = {
+    precedent match {
+      case 1 =>
+        "&&" ^^^ EAnd
+      case 2 =>
+        "=" ^^^ EEq | "==" ^^^ EEq
+      case 3 =>
+        "+" ^^^ EAdd | "-" ^^^ ESub
+      case 4 =>
+        "*" ^^^ EMul | "/" ^^^ EDiv
+    }
+  }
+  
+  val minPrecedentLevel = 1
+  val maxPrecedentLevel = 4
+
+  def binaryOpExpr(level:Int):Parser[Expr] = {
+    if (level > maxPrecedentLevel) term else binaryOpExpr(level + 1) * binaryOperator(level)
+  }
 
   def sLet = ("let" ~> ident <~ "=") ~ expr ^^ {
     case b ~ e => SLet(b,e)

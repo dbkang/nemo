@@ -47,6 +47,7 @@ class NemoCell(val row:Int, val column:Int) {
       case EList(es) => es.flatMap(findPrecedents _)
       case EIf(c, e1, e2) => findPrecedents(c) ++ findPrecedents(e1) ++ findPrecedents(e2)
       case EEq(l, r) => findPrecedents(l) ++ findPrecedents(r)
+      case EAnd(l, r) => findPrecedents(l) ++ findPrecedents(r)
     }
   }  
 
@@ -88,42 +89,43 @@ trait NemoValue {
   def -(b:NemoValue):NemoValue = NemoError("Not supported")
 //  def ==(b:NemoValue):NemoValue = this == b
   override def toString = value.toString
+  def toInt:Option[Int] = None
+  def toDouble:Option[Double] = toInt.map { _.toDouble }
+  def toBoolean:Boolean = true
 }
+
 
 
 case class NemoInt(val value:Int) extends NemoValue {
   def valueType = "Int"
-  def convert(a:NemoValue):Option[NemoInt] = a match { case v:NemoInt => Some(v) case _ => None }
-  override def +(b:NemoValue) = convert(b).map(a => NemoInt(a.value + value)).getOrElse(NemoError("Not supported"))
-  override def *(b:NemoValue) = convert(b).map(a => NemoInt(a.value * value)).getOrElse(NemoError("Not supported"))
-  override def /(b:NemoValue) = convert(b).map(a => NemoInt(value / a.value)).getOrElse(NemoError("Not supported"))
-  override def -(b:NemoValue) = convert(b).map(a => NemoInt(value - a.value)).getOrElse(NemoError("Not supported"))
+  override def +(b:NemoValue) = b.toInt.map(a => NemoInt(a + value)).getOrElse(NemoError("Not supported"))
+  override def *(b:NemoValue) = b.toInt.map(a => NemoInt(a * value)).getOrElse(NemoError("Not supported"))
+  override def /(b:NemoValue) = b.toInt.map(a => NemoInt(value / a)).getOrElse(NemoError("Not supported"))
+  override def -(b:NemoValue) = b.toInt.map(a => NemoInt(value - a)).getOrElse(NemoError("Not supported"))
+  override def toInt = Some(value)
+  override def toBoolean = (value != 0)
 }
 
 case class NemoDouble(val value:Double) extends NemoValue {
   def valueType = "Double"
-  def convert(a:NemoValue):Option[NemoDouble] = {
-    a match {
-      case v:NemoDouble => Some(v)
-      case NemoInt(v) => Some(NemoDouble(v.toDouble))
-      case _ => None
-    }
-  }
-  override def +(b:NemoValue) = convert(b).map(a => NemoDouble(a.value + value)).getOrElse(NemoError("Not supported"))
-  override def *(b:NemoValue) = convert(b).map(a => NemoDouble(a.value * value)).getOrElse(NemoError("Not supported"))
-  override def /(b:NemoValue) = convert(b).map(a => NemoDouble(value / a.value)).getOrElse(NemoError("Not supported"))
-  override def -(b:NemoValue) = convert(b).map(a => NemoDouble(value - a.value)).getOrElse(NemoError("Not supported"))
-
+  override def +(b:NemoValue) = b.toDouble.map(a => NemoDouble(a + value)).getOrElse(NemoError("Not supported"))
+  override def *(b:NemoValue) = b.toDouble.map(a => NemoDouble(a * value)).getOrElse(NemoError("Not supported"))
+  override def /(b:NemoValue) = b.toDouble.map(a => NemoDouble(value / a)).getOrElse(NemoError("Not supported"))
+  override def -(b:NemoValue) = b.toDouble.map(a => NemoDouble(value - a)).getOrElse(NemoError("Not supported"))
+  override def toDouble = Some(value.toDouble)
+  override def toBoolean = (value != 0.0)
 }
 
 case class NemoString(val value:String) extends NemoValue {
   def valueType = "String"
   override def +(b:NemoValue) = NemoString(value + b.toString)
+  override def toBoolean = (value != "")
 }
 
 case class NemoError(val value:String) extends NemoValue {
   def valueType = "Error"
   override def toString = "Error: " + value
+  override def toBoolean = false
 }  
 
 case class NemoImageURL(val value:String) extends NemoValue {
@@ -186,11 +188,14 @@ case object NemoUnit extends NemoList {
   def headOption = None
   def tailOption = None
   def apply(idx:Int) = None
+  override def toBoolean = false
 }
 
 
 case class NemoBoolean(val value:Boolean) extends NemoValue {
   def valueType = "Boolean"
+  override def toBoolean = value
+  override def toInt = if (value) Some(1) else Some(0)
 }
 
 object NemoList {
