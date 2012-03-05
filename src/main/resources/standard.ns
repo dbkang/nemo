@@ -35,5 +35,39 @@ let append = fun(l1,l2) {
     l2
   else
     cons(head(l1),append(tail(l1),l2))
-}
+};
 
+
+let foldleft = fun(f, z, l) {
+  if (null?(l))
+    z
+  else
+    foldleft(f, f(z, head(l)), tail(l))
+};
+
+let foldright = fun(f, z, l) {
+  if (null?(l))
+    z
+  else
+    f(head(l), foldright(f, z, tail(l)))
+};
+
+let flatmap = fun(f, l) {
+  foldleft(append, nil, map(f, l))
+};
+
+let int? = fun(a) { typeof(a) = "Int" };
+
+let double? = fun(a) { typeof(a) = "Double" };
+
+let string? = fun(a) { typeof(a) = "String" };
+
+let boolean? = fun(a) { typeof(a) = "Boolean" };
+
+let primitive? = fun(a) { typeof(a) = "Primitive" };
+
+
+
+
+
+  
