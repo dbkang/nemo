@@ -1,5 +1,7 @@
 import scala.collection.mutable.Set
 import java.awt.image.BufferedImage
+import java.awt.Rectangle
+import java.awt.Color
 
 // represents each cell in the Nemo table
 // TODO: figure out whether TableModel needs to return via getValueAt NemoCell or
@@ -129,6 +131,29 @@ case class NemoError(val value:String) extends NemoValue {
   override def toString = "Error: " + value
   override def toBoolean = false
 }  
+
+object NemoImage {
+  def apply(value:BufferedImage, convert:Boolean):NemoImage = {
+    if (convert && value.getType != BufferedImage.TYPE_3BYTE_BGR) {
+      val image = new BufferedImage(value.getWidth, value.getHeight, BufferedImage.TYPE_3BYTE_BGR)
+      val g2d = image.createGraphics
+      g2d.drawImage(value,0,0,null)
+      g2d.dispose
+      apply(image)
+    }
+    else
+      apply(value)
+  }
+  def apply(width:Int, height:Int):NemoImage = {
+    val image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR)
+    val g2d = image.createGraphics
+    g2d.setColor(Color.WHITE)
+    g2d.fill(new Rectangle(width, height))
+    g2d.dispose
+    apply(image)
+  }
+}      
+        
 
 case class NemoImage(val value:BufferedImage) extends NemoValue {
   def valueType = "Image"
