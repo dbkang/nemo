@@ -5,6 +5,8 @@ import scala.io.BufferedSource
 import scala.io.Source
 import scala.collection.immutable.PagedSeq
 import scala.util.parsing.input.StreamReader
+import javax.imageio.ImageIO
+import java.net.URL
 
 sealed abstract class Expr {
   def eval(c: NemoContext):Option[NemoValue]
@@ -125,7 +127,7 @@ case object NemoPreContext extends NemoContext {
   bindings += (("nil", NemoList.nil))
 
   addPrimitive("url", args => {
-    args.headOption.map(v => NemoImageURL(v.toString))
+    args.headOption.map(v => NemoImage(ImageIO.read(new URL(v.toString))))
   })
                
   addPrimitive("command", args => {

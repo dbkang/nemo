@@ -3,7 +3,6 @@ import javax.swing.UIManager
 import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.AbstractTableModel
 import javax.swing.ImageIcon
-import java.net.URL
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.Stack
 import scala.xml.NodeSeq
@@ -57,30 +56,25 @@ class FormulaRenderer extends DefaultTableCellRenderer {
       setText("")
     }
     else {
-      try {
-        val v2 = v.asInstanceOf[NemoCell].value.get
-        if (v2.valueType == "ImageURL") {
-          val c = v.asInstanceOf[NemoCell]
-          val icon = new ImageIcon(new URL(v2.asInstanceOf[NemoImageURL].value))
-          val height = icon.getIconHeight
-          val width = icon.getIconWidth
-          val t = NemoPreContext.nemoTableReferenced //NemoParser.nemoTableReferenced
-          val col = t.peer.getColumnModel.getColumn(c.column)
-          //println("New width: " + width)
-          //println("Old width: " + col.getWidth)
-          //println("Column number: " + c.column)
-          col.setPreferredWidth(math.max(col.getPreferredWidth, width))
-          //t.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
-          t.setRowHeight(c.row, NemoUtil.newRowHeight(height, height))
-          setIcon(icon)
-        }      
-        else {
-          setIcon(null)
-          setText(v.asInstanceOf[NemoCell].text)
+      v match {
+        case c:NemoCell => c.value match {
+          case Some(NemoImage(image)) => {
+            val icon = new ImageIcon(image)
+            val height = icon.getIconHeight
+            val width = icon.getIconWidth
+            val t = NemoPreContext.nemoTableReferenced //NemoParser.nemoTableReferenced
+            val col = t.peer.getColumnModel.getColumn(c.column)
+            col.setPreferredWidth(math.max(col.getPreferredWidth, width))
+            //t.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
+            t.setRowHeight(c.row, NemoUtil.newRowHeight(height, height))
+            setIcon(icon)
+          }
+          case _ => {
+            setIcon(null)
+            setText(v.asInstanceOf[NemoCell].text)
+          }
         }
-      }
-      catch {
-        case e => {
+        case _ => {
           setIcon(null);
           setText("Error")
         }
@@ -88,6 +82,7 @@ class FormulaRenderer extends DefaultTableCellRenderer {
     }
   }
 }
+
 
 object NemoTable {
   def saveFile(t:NemoTable, f:File) = {

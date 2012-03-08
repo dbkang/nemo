@@ -1,4 +1,5 @@
 import scala.collection.mutable.Set
+import java.awt.image.BufferedImage
 
 // represents each cell in the Nemo table
 // TODO: figure out whether TableModel needs to return via getValueAt NemoCell or
@@ -129,9 +130,9 @@ case class NemoError(val value:String) extends NemoValue {
   override def toBoolean = false
 }  
 
-case class NemoImageURL(val value:String) extends NemoValue {
-  def valueType = "ImageURL"
-  override def toString = "ImageURL: " + value
+case class NemoImage(val value:BufferedImage) extends NemoValue {
+  def valueType = "Image"
+  override def toString = "Image"
 }
 
 trait NemoFunction extends NemoValue {
