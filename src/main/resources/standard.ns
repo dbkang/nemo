@@ -26,10 +26,6 @@ let not = fun(b) {
   if (b) false else true
 };
 
-let compose = fun(f,g) {
-  fun() {f(apply(g, args))}
-};
-
 let append = fun(l1,l2) {
   if (null?(l1))
     l2
@@ -66,8 +62,13 @@ let boolean? = fun(a) { typeof(a) = "Boolean" };
 
 let primitive? = fun(a) { typeof(a) = "Primitive" };
 
+let compose = fun() {
+  let funs = args;
+  if (null?(funs))
+    fun () {args}
+  else if (null?(tail(funs)))
+    head(funs)
+  else
+    fun () {(head(funs))(apply(apply(compose, tail(funs)), args))}
+};
 
-
-
-
-  
