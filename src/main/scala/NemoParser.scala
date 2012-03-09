@@ -142,7 +142,16 @@ case object NemoPreContext extends NemoContext {
   })
 
 
-               
+  addPrimitive("resize", args => {
+    for (arg1 <- args(0);
+         arg2 <- args(1);
+         arg3 <- args(2);
+         image <- arg1.toImage;
+         width <- arg2.toInt;
+         height <- arg3.toInt)
+    yield NemoImage(image).resize(width,height)
+  })      
+
   addPrimitive("command", args => {
     import scala.sys.process._
     var stringBuffer:String = ""

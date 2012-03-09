@@ -1,5 +1,6 @@
 import scala.collection.mutable.Set
 import java.awt.image.BufferedImage
+import java.awt.Image
 import java.awt.Rectangle
 import java.awt.Color
 
@@ -96,6 +97,7 @@ trait NemoValue {
   def toInt:Option[Int] = None
   def toDouble:Option[Double] = toInt.map { _.toDouble }
   def toBoolean:Boolean = true
+  def toImage:Option[BufferedImage] = None
 }
 
 
@@ -158,6 +160,14 @@ object NemoImage {
 case class NemoImage(val value:BufferedImage) extends NemoValue {
   def valueType = "Image"
   override def toString = "Image"
+  override def toImage = Some(value)
+  def resize(width:Int, height:Int):NemoImage = {
+    val image = NemoImage(width, height)
+    val g2d = image.value.createGraphics
+    g2d.drawImage(value.getScaledInstance(width,height,Image.SCALE_SMOOTH), 0, 0, null)
+    g2d.dispose
+    image
+  }
 }
 
 trait NemoFunction extends NemoValue {
