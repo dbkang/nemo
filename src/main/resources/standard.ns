@@ -72,3 +72,7 @@ let compose = fun() {
     fun () {(head(funs))(apply(apply(compose, tail(funs)), args))}
 };
 
+let function? = fun(a) { typeof(a) == "Primitive" || typeof(a) == "Function" };
+
+let image? = fun(a) { typeof (a) == "Image" }
+

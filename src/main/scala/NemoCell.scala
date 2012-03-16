@@ -12,7 +12,7 @@ import java.awt.Color
 class NemoCell(val row:Int, val column:Int) {
   private var formulaValue:String = ""
   private var parsed:Option[Expr] = None
-  private var cachedValue:Option[NemoValue] = None
+  private var cachedValue:Option[NemoValue] = Some(NemoUnit)
 
   //def nemotable(col:Int, row:Int):NemoCell
 
@@ -25,7 +25,14 @@ class NemoCell(val row:Int, val column:Int) {
     // recalculate. TODO: this should eventually depend on a global setting
     // TODO: loop detection - loop-causing references should result in parsed
     // set to None
-    parsed = NemoParser(newFormula).map(Some(_)).getOrElse(None)
+    parsed = (newFormula, NemoParser(newFormula)) match {
+      case ("", _) => Some(ELit(NemoUnit))
+      case (_, NemoParser.Success(e, _)) => Some(e)
+      case (_, NemoParser.Failure(msg, _)) => Some(ELit(NemoError(msg)))
+      case (_, NemoParser.Error(msg, _)) => Some(ELit(NemoError(msg)))
+      case _ => Some(ELit(NemoError("Unknown Error")))
+    }
+
     parsed.foreach(e => findPrecedents(e).foreach(addPrecedent(_)))
     calculate
 
@@ -220,7 +227,7 @@ trait NemoList extends NemoValue {
 case object NemoUnit extends NemoList {
   def valueType = "Unit"
   def value = ();
-  override def toString = "Nil"
+  override def toString = ""
   def toSeqOption:Option[Seq[NemoValue]] = Some(Seq[NemoValue]())
   def headOption = None
   def tailOption = None
