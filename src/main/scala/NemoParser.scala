@@ -111,7 +111,7 @@ case class EApply(fun:Expr, args:EList) extends Expr {
 object NemoParser extends StandardTokenParsers {
   
   override val lexical = ExprLexical
-  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}", ",", "<", ">", "&&", "||", "==")
+  lexical.delimiters ++= List("+", "-", "*", "/", "(", ")", "=", ";", "{", "}", ",", "<", ">", "&&", "||", "==", ".")
   lexical.reserved ++= List("let", "fun","true", "false", "if", "else" )
   val numericLiteral = numericLit ^^ {
     i => if (i.contains(".")) ELit(NemoDouble(i.toDouble)) else ELit(NemoInt(i.toInt))
@@ -126,18 +126,31 @@ object NemoParser extends StandardTokenParsers {
   val stringLiteral = stringLit ^^ { s => ELit(NemoString(s)) }
   val booleanLiteral = "true" ^^ { s => ELit(NemoBoolean(true)) } | "false" ^^ { s => ELit(NemoBoolean(false)) }
 
-  def anonFunCall:Parser[Expr] = ("(" ~> expr <~ ")") ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
-  def funCall:Parser[Expr] = ref ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
+//  def anonFunCall:Parser[Expr] = ("(" ~> expr <~ ")") ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
+//  def funtionCall:Parser[Expr] = term ~ ("(" ~> exprList <~ ")") ^^ { case f ~ e => EApply(f, e) }
+//  def methodCall = (ref <~ ".") ~ ref ^^ { case e ~ f => EApply(f, e) } |
+  
   val ref = ident ^^ ERef
-  def term:Parser[Expr] =  anonFunCall | funCall | "(" ~> expr <~ ")" | numericLiteral | stringLiteral | booleanLiteral | ref
+  def term:Parser[Expr] =  "(" ~> expr <~ ")" | numericLiteral | stringLiteral | booleanLiteral | ref
+//  def factor = funtionCall | term
 
+  def factor = term ~ rep(("(" ~> exprList <~ ")") | (("." ~ ref ~ opt("(" ~> exprList <~ ")")))) ^^ {
+    case e ~ cs => cs.foldLeft(e) {
+      (_, _) match {
+        case (e1, ("." ~ (f:Expr) ~ Some(l:EList))) => EApply(f, EList(e1 +: l.es))
+        case (e1, ("." ~ (f:Expr) ~ None)) => EApply(f, EList(Seq(e1)))
+        case (f, l:EList) => EApply(f, l)
+      }
+    }
+  }
+        
   def ifExp = ("if" ~> "(" ~> expr <~ ")") ~ expr ~ ("else" ~> expr) ^^ {
     case cond ~ e1 ~ e2 => EIf(cond, e1, e2)
   }
 
   def exprList = sequencer(expr, ",") ^^ { EList(_)}
 
-  def expr:Parser[Expr] = ifExp | funDef | binaryOpExpr(minPrecedentLevel) | term // | exprList
+  def expr:Parser[Expr] = ifExp | funDef | binaryOpExpr(minPrecedentLevel) | factor // | exprList
 
 
   // precedent
@@ -158,7 +171,7 @@ object NemoParser extends StandardTokenParsers {
   val maxPrecedentLevel = 4
 
   def binaryOpExpr(level:Int):Parser[Expr] = {
-    if (level > maxPrecedentLevel) term else binaryOpExpr(level + 1) * binaryOperator(level)
+    if (level > maxPrecedentLevel) factor else binaryOpExpr(level + 1) * binaryOperator(level)
   }
 
   def sLet = ("let" ~> ident <~ "=") ~ expr ^^ {
