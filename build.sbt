@@ -12,6 +12,10 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 libraryDependencies += "org.scala-lang" % "scala-swing" % "2.9.1"
 
+libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % "1.7.1" % "test"
+)
+
 // libraryDependencies += "se.scalablesolutions.akka" % "akka-actor" % "1.2"
 
 scalacOptions ++= Seq("-deprecation")

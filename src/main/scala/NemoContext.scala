@@ -33,8 +33,8 @@ case object NemoPreContext extends NemoContext {
     addPrimitive("image", args => {
       for (arg1 <- args(0);
            arg2 <- args(1);
-           width <- arg1.toInt;
-           height <- arg2.toInt)
+           width <- arg1.toIntOption;
+           height <- arg2.toIntOption)
       yield NemoImage(width,height)
     })
     
@@ -43,9 +43,9 @@ case object NemoPreContext extends NemoContext {
       for (arg1 <- args(0);
            arg2 <- args(1);
            arg3 <- args(2);
-           image <- arg1.toImage;
-           width <- arg2.toInt;
-           height <- arg3.toInt)
+           image <- arg1.toImageOption;
+           width <- arg2.toIntOption;
+           height <- arg3.toIntOption)
       yield NemoImage(image).resize(width,height)
     })      
     
@@ -99,7 +99,12 @@ case object NemoPreContext extends NemoContext {
 
   load
   var nemoTableReferenced:NemoTable = null
-  def refToNemoCell(r:String):Option[NemoCell] = nemoTableReferenced(r)
+  def refToNemoCell(r:String):Option[NemoCell] = {
+    if (nemoTableReferenced == null)
+      None
+    else
+      nemoTableReferenced(r)
+  }
   def apply(name:String) = bindings.get(name).orElse(refToNemoCell(name).flatMap(_.value))
 }
 

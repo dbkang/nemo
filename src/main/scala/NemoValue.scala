@@ -14,32 +14,35 @@ trait NemoValue {
   def -(b:NemoValue):NemoValue = NemoError("Not supported")
 //  def ==(b:NemoValue):NemoValue = this == b
   override def toString = value.toString
-  def toInt:Option[Int] = None
-  def toDouble:Option[Double] = toInt.map { _.toDouble }
+  def toIntOption:Option[Int] = None
+  def toDoubleOption:Option[Double] = toIntOption.map { _.toDouble }
+  def toInt = toIntOption.get
+  def toDouble = toDoubleOption.get
   def toBoolean:Boolean = true
-  def toImage:Option[BufferedImage] = None
+  def toImageOption:Option[BufferedImage] = None
 }
 
 
 
 case class NemoInt(val value:Int) extends NemoValue {
   def valueType = "Int"
-  override def +(b:NemoValue) = b.toInt.map(a => NemoInt(a + value)).getOrElse(NemoError("Not supported"))
-  override def *(b:NemoValue) = b.toInt.map(a => NemoInt(a * value)).getOrElse(NemoError("Not supported"))
-  override def /(b:NemoValue) = b.toInt.map(a => NemoInt(value / a)).getOrElse(NemoError("Not supported"))
-  override def -(b:NemoValue) = b.toInt.map(a => NemoInt(value - a)).getOrElse(NemoError("Not supported"))
-  override def toInt = Some(value)
-  override def toBoolean = (value != 0)
+  override def +(b:NemoValue) = b.toIntOption.map(a => NemoInt(a + value)).getOrElse(NemoError("Not supported"))
+  override def *(b:NemoValue) = b.toIntOption.map(a => NemoInt(a * value)).getOrElse(NemoError("Not supported"))
+  override def /(b:NemoValue) = b.toIntOption.map(a => NemoInt(value / a)).getOrElse(NemoError("Not supported"))
+  override def -(b:NemoValue) = b.toIntOption.map(a => NemoInt(value - a)).getOrElse(NemoError("Not supported"))
+  override def toIntOption = Some(value)
+  override def toBoolean = value != 0
 }
 
 case class NemoDouble(val value:Double) extends NemoValue {
   def valueType = "Double"
-  override def +(b:NemoValue) = b.toDouble.map(a => NemoDouble(a + value)).getOrElse(NemoError("Not supported"))
-  override def *(b:NemoValue) = b.toDouble.map(a => NemoDouble(a * value)).getOrElse(NemoError("Not supported"))
-  override def /(b:NemoValue) = b.toDouble.map(a => NemoDouble(value / a)).getOrElse(NemoError("Not supported"))
-  override def -(b:NemoValue) = b.toDouble.map(a => NemoDouble(value - a)).getOrElse(NemoError("Not supported"))
-  override def toDouble = Some(value.toDouble)
-  override def toBoolean = (value != 0.0)
+  override def +(b:NemoValue) = b.toDoubleOption.map(a => NemoDouble(a + value)).getOrElse(NemoError("Not supported"))
+  override def *(b:NemoValue) = b.toDoubleOption.map(a => NemoDouble(a * value)).getOrElse(NemoError("Not supported"))
+  override def /(b:NemoValue) = b.toDoubleOption.map(a => NemoDouble(value / a)).getOrElse(NemoError("Not supported"))
+  override def -(b:NemoValue) = b.toDoubleOption.map(a => NemoDouble(value - a)).getOrElse(NemoError("Not supported"))
+  override def toIntOption = Some(value.toInt)
+  override def toDoubleOption = Some(value)
+  override def toBoolean = value != 0.0
 }
 
 case class NemoString(val value:String) extends NemoValue {
@@ -80,7 +83,7 @@ object NemoImage {
 case class NemoImage(val value:BufferedImage) extends NemoValue {
   def valueType = "Image"
   override def toString = "Image"
-  override def toImage = Some(value)
+  override def toImageOption = Some(value)
   def resize(width:Int, height:Int):NemoImage = {
     val image = NemoImage(width, height)
     val g2d = image.value.createGraphics
@@ -152,7 +155,7 @@ case object NemoUnit extends NemoList {
 case class NemoBoolean(val value:Boolean) extends NemoValue {
   def valueType = "Boolean"
   override def toBoolean = value
-  override def toInt = if (value) Some(1) else Some(0)
+  override def toIntOption = if (value) Some(1) else Some(0)
 }
 
 object NemoList {
