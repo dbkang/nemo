@@ -63,4 +63,13 @@ class NemoParserTest extends FunSuite {
     assert(eval("(fun (a, b) { let c = a + b; c + 10 })(5,5)") === 20)
     assert(eval("(fun (a, b) { let a = b; a + 10 })(1,10)") === 20)
   }
+
+  test("Dot notation for function/method calling is parsed and applied correctly") {
+    assert(eval("5.add(5)") === 10)
+    assert(eval("typeof.typeof") === "Primitive")
+    assert(eval("5.typeof()") === "Int")
+    assert(eval("5.cons(10).head") === 5)
+    assert(eval("typeof.typeof.typeof()") === "String")
+    assert(eval("5.image(10).typeof") === "Image")
+  }
 }

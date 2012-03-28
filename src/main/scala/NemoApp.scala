@@ -295,7 +295,7 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
 }
   
 
-object BasicNemoTest extends SimpleSwingApplication {
+object NemoApp extends SimpleSwingApplication {
   def top = new MainFrame {
     //UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel")
     UIManager.setLookAndFeel("com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel")

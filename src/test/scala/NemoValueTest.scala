@@ -18,6 +18,8 @@ class NemoValueTest extends FunSuite {
     assert(NemoDouble(6.0).toBoolean === true)
     assert(NemoString("").toBoolean === false)
     assert(NemoString("Jim").toBoolean === true)
+    assert(NemoUnit.toBoolean === false)
+    assert(NemoCons(NemoUnit, NemoUnit).toBoolean === true)
   }
 
   test("+ works as append for NemoStrings") {
@@ -27,7 +29,7 @@ class NemoValueTest extends FunSuite {
     assert(NemoString("me") + NemoBoolean(true) === NemoString("metrue"))
   }
 
-  test("NemoCons operations work") {
+  test("NemoCons/NemoList operations work") {
     val pair = NemoCons(NemoInt(5), NemoString("yo"))
     val list = NemoList(List(NemoInt(5), NemoString("see"), NemoDouble(5.5)))
     assert(pair.headOption.get === NemoInt(5))
@@ -35,8 +37,9 @@ class NemoValueTest extends FunSuite {
     assert(list.toSeqOption.get(0) === NemoInt(5))
     assert(list.toSeqOption.get(1) === NemoString("see"))
     assert(list.toSeqOption.get(2) === list(2).get)
+    assert(NemoUnit.headOption === None)
+    assert(NemoUnit.tailOption === None)
   }
-    
 
   test("Operations for incompatible types result in NemoError") {
     assert((NemoInt(5) + NemoString("Jim")).valueType === "Error")

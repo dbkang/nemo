@@ -134,8 +134,8 @@ case class NemoSpecialForm(val value:(NemoContext,EList)=>Option[NemoValue]) ext
 trait NemoList extends NemoValue {
   def length = 0
   def toSeqOption:Option[Seq[NemoValue]]
-  def headOption:Option[NemoValue]
-  def tailOption:Option[NemoValue]
+  def headOption:Option[NemoValue] = None
+  def tailOption:Option[NemoValue] = None
   def apply(idx:Int):Option[NemoValue]
 }
 
@@ -145,8 +145,6 @@ case object NemoUnit extends NemoList {
   def value = ();
   override def toString = ""
   def toSeqOption:Option[Seq[NemoValue]] = Some(Seq[NemoValue]())
-  def headOption = None
-  def tailOption = None
   def apply(idx:Int) = None
   override def toBoolean = false
 }
@@ -173,8 +171,8 @@ case class NemoCons(var head: NemoValue, var tail:NemoValue) extends NemoList {
       case _ => None
     }
   }
-  def headOption = Some(head)
-  def tailOption = Some(tail)
+  override def headOption = Some(head)
+  override def tailOption = Some(tail)
   def apply(idx:Int) = (idx, tail) match {
     case (0, _) => Some(head)
     case (x, y:NemoCons) => y(x - 1)
