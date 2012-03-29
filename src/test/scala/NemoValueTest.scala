@@ -1,6 +1,7 @@
 import org.scalatest.FunSuite
+import org.scalatest.OptionValues
 
-class NemoValueTest extends FunSuite {
+class NemoValueTest extends FunSuite with OptionValues {
 
   test("NemoInt binary operations work properly") {
     assert(NemoInt(5) + NemoInt(4) === NemoInt(9))
@@ -10,8 +11,8 @@ class NemoValueTest extends FunSuite {
   }
 
   test("NemoValue coercions work properly") {
-    assert(NemoDouble(5).toIntOption.get === 5)
-    assert(NemoInt(5).toDoubleOption.get === 5.0)
+    assert(NemoDouble(5).toIntOption.value === 5)
+    assert(NemoInt(5).toDoubleOption.value === 5.0)
     assert(NemoInt(5).toString === "5")
     assert(NemoDouble(5).toString === "5.0")
     assert(NemoDouble(0.0).toBoolean === false)
@@ -32,11 +33,11 @@ class NemoValueTest extends FunSuite {
   test("NemoCons/NemoList operations work") {
     val pair = NemoCons(NemoInt(5), NemoString("yo"))
     val list = NemoList(List(NemoInt(5), NemoString("see"), NemoDouble(5.5)))
-    assert(pair.headOption.get === NemoInt(5))
-    assert(pair.tailOption.get === NemoString("yo"))
-    assert(list.toSeqOption.get(0) === NemoInt(5))
-    assert(list.toSeqOption.get(1) === NemoString("see"))
-    assert(list.toSeqOption.get(2) === list(2).get)
+    assert(pair.headOption.value === NemoInt(5))
+    assert(pair.tailOption.value === NemoString("yo"))
+    assert(list.toSeqOption.value(0) === NemoInt(5))
+    assert(list.toSeqOption.value(1) === NemoString("see"))
+    assert(list.toSeqOption.value(2) === list(2).value)
     assert(NemoUnit.headOption === None)
     assert(NemoUnit.tailOption === None)
   }

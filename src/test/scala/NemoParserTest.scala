@@ -1,8 +1,13 @@
 import org.scalatest.FunSuite
+import org.scalatest.OptionValues
 
-class NemoParserTest extends FunSuite {
-  def eval(a:String) = NemoParser(a).get.eval(NemoPreContext).get.value
 
+class NemoParserTest extends FunSuite with OptionValues {
+  def eval(a:String) = {
+    val parseResult = NemoParser(a) 
+    assert(parseResult.successful, "[" + a + "] did not parse correctly")
+    parseResult.get.eval(NemoPreContext).value.value
+  }
   test("Numeric literals are parsed and evaluated to be themselves") {
     assert(eval("54234") === 54234)
     assert(eval("54.234") === 54.234)
