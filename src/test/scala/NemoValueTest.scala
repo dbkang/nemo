@@ -23,7 +23,7 @@ class NemoValueTest extends FunSuite with OptionValues {
     assert(NemoCons(NemoUnit, NemoUnit).toBoolean === true)
   }
 
-  test("+ works as append for NemoStrings") {
+  test("Plus operator works as append for NemoStrings") {
     assert(NemoString("dude") + NemoString("yo") === NemoString("dudeyo"))
     assert(NemoString("cool") + NemoInt(12345) === NemoString("cool12345"))
     assert(NemoString("surething") + NemoDouble(5.5) === NemoString("surething5.5"))  

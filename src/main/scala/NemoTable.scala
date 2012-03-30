@@ -145,6 +145,8 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
       Some(data(row)(col))
   }
 
+  // does the same thing as model.setValueAt, but without affecting
+  // undo/redo stack.  used for file load
   def setFormula(row:Int, col:Int, formula:String) = {
     if (data(row)(col) == null) {
       data(row)(col) = new NemoCell(row, col)
