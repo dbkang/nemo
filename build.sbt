@@ -20,12 +20,12 @@ libraryDependencies ++= Seq(
 
 scalacOptions ++= Seq("-deprecation")
 
-mainClass in (Compile, run) := Some("BasicNemoTest")
+mainClass in (Compile, run) := Some("NemoApp")
 
 // mainClass in (Compile, run) := Some("GameOfLife")
 
-mainClass := Some("BasicNemoTest")
+mainClass := Some("NemoApp")
 
 fork in run := true
 
-javaOptions in run += "-Xmx1G"
+javaOptions in run ++= Seq("-Xms64M", "-Xmx1536M", "-Xss1M", "-XX:MaxPermSize=384M")

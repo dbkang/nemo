@@ -98,12 +98,12 @@ case object NemoPreContext extends NemoContext {
   }
 
   load
-  var nemoTableReferenced:NemoTable = null
+  var nemoTable:NemoTable = null
   def refToNemoCell(r:String):Option[NemoCell] = {
-    if (nemoTableReferenced == null)
+    if (nemoTable == null)
       None
     else
-      nemoTableReferenced(r)
+      nemoTable(r)
   }
   def apply(name:String) = bindings.get(name).orElse(refToNemoCell(name).flatMap(_.value))
 }
