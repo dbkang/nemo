@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
 
 // libraryDependencies += "se.scalablesolutions.akka" % "akka-actor" % "1.2"
 
-scalacOptions ++= Seq("-deprecation")
+scalacOptions ++= Seq("-deprecation", "-unchecked")
 
 mainClass in (Compile, run) := Some("NemoApp")
 

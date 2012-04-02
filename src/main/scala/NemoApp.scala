@@ -58,7 +58,13 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
       val choice = d.showSaveDialog(null)
       if (choice == FileChooser.Result.Approve)
         NemoTable.saveFile(nemo, d.selectedFile)
-    }        
+    }
+
+    contents += Button("Script Editor") {
+      val editor = new ScriptEditorWindow(Seq("Standard Library", "Your Nemoscript"),
+                                          Seq(NemoPreContext.standardLib.mkString, ""))
+      editor.open
+    }
     minimumSize = preferredSize
     maximumSize = preferredSize
   }

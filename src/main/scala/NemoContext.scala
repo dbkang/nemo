@@ -19,6 +19,8 @@ case object NemoPreContext extends NemoContext {
   def addPrimitive(name:String, function:NemoList=>Option[NemoValue]) = {
     bindings += ((name, NemoPrimitive(name, function)))
   }
+  def standardLib = Source.fromURL(getClass.getResource("/standard.ns"))
+
   def load = {
     bindings.clear
 
@@ -92,7 +94,7 @@ case object NemoPreContext extends NemoContext {
       args(0).map { v => NemoString(v.valueType) }
     })
 
-    NemoParser.parseSourceFile(Source.fromURL(getClass.getResource("/standard.ns"))).map {
+    NemoParser.parseSourceFile(standardLib).map {
       l => l.foreach { _.eval(this) }
     }
   }
