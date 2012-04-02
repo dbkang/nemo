@@ -70,7 +70,6 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
     maximumSize = preferredSize
   }
 }
-  
 
 object NemoApp extends SimpleSwingApplication {
   def top = new MainFrame {
