@@ -28,4 +28,4 @@ class NemoContextTest extends FunSuite with OptionValues {
     assert(nc("typeof").value.valueType === "Primitive")
   }
 }
-    
+

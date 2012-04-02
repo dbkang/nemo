@@ -5,7 +5,7 @@ import scala.collection.mutable.Set
 // something else like NemoCellValue.  I would think eventually, it's going to be
 // NemoCellValue, but not completely certain
 
-class NemoCell(val row:Int, val column:Int) {
+class NemoCell(val row:Int, val column:Int, val sheetModel:NemoSheetModel) {
   private var formulaValue:String = ""
   private var parsed:Option[Expr] = None
   private var cachedValue:Option[NemoValue] = Some(NemoUnit)
@@ -44,7 +44,7 @@ class NemoCell(val row:Int, val column:Int) {
   def findPrecedents(e:Expr):Seq[NemoCell] = {
     e match {
       case ELit(_) => Seq()
-      case ERef(ref) => NemoPreContext.refToNemoCell(ref).toList
+      case ERef(ref) => sheetModel(ref).toList
       case EAdd(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case ESub(l, r) => findPrecedents(l) ++ findPrecedents(r)
       case EMul(l, r) => findPrecedents(l) ++ findPrecedents(r)
@@ -76,7 +76,7 @@ class NemoCell(val row:Int, val column:Int) {
   def address = NemoUtil.columnName(column) + row.toString
   def value = cachedValue //parsed.flatMap(_.eval)
   def calculate:Unit = {
-    cachedValue = parsed.flatMap(_.eval(NormalContext(NemoPreContext)))
+    cachedValue = parsed.flatMap(_.eval(NormalContext(sheetModel.context)))
     //NemoParser.nemoTableReferenced.updateCell(row, column)
     //NemoParser.nemoTableReferenced.model.fireTableCellUpdated(row, column)
     dependents.foreach(_.calculate)

@@ -63,7 +63,7 @@ class FormulaRenderer extends DefaultTableCellRenderer {
             val icon = new ImageIcon(image)
             val height = icon.getIconHeight
             val width = icon.getIconWidth
-            val t = NemoPreContext.nemoTable
+            val t = c.sheetModel.view.get // view has to be available for the renderer to be triggered
             val col = t.peer.getColumnModel.getColumn(c.column)
             col.setPreferredWidth(math.max(col.getPreferredWidth, width))
             //t.setRowHeight(c.row, NemoUtil.newRowHeight(t.peer.getRowHeight(c.row), height))
@@ -84,13 +84,12 @@ class FormulaRenderer extends DefaultTableCellRenderer {
   }
 }
 
-
-object NemoTable {
-  def saveFile(t:NemoTable, f:File) = {
+object NemoSheetModel {
+  def saveFile(t:NemoSheetModel, f:File) = {
     XML.save(f.getAbsolutePath, t.toNodeSeq)
   }
 
-  def openFile(f:File):Option[NemoTable] = {
+  def openFile(f:File):Option[NemoSheetModel] = {
     try {
       val xml = XML.loadFile(f)
       Some(apply(xml))
@@ -99,44 +98,45 @@ object NemoTable {
     }
   }
 
-  def apply(rows:Int, cols:Int) = {
-    val t = new NemoTable(rows, cols)
-    NemoPreContext.nemoTable = t
-    t
-  }
+  def apply(rows:Int, cols:Int) = new NemoSheetModel(rows, cols)
 
   def apply(xml:NodeSeq) = {
     val attribs = xml(0).attributes
-    val table = try {
+    try {
       val rows = attribs("rows")(0).text.toInt
       val cols = attribs("cols")(0).text.toInt
-      val t = new NemoTable(rows, cols)
-      NemoPreContext.nemoTable = t
-      xml(0).child.foreach(cell => {
-        if (cell.label == "cell") {
-          val row = cell.attributes("row")(0).text.toInt
-          val col = cell.attributes("col")(0).text.toInt
-          t.setFormula(row, col, cell.attributes("formula")(0).text)
-        }
-      })
-      t.repaint
-      t
+      new NemoSheetModel(rows, cols) {
+        xml(0).child.foreach(cell => {
+          if (cell.label == "cell") {
+            val row = cell.attributes("row")(0).text.toInt
+            val col = cell.attributes("col")(0).text.toInt
+            setFormula(row, col, cell.attributes("formula")(0).text)
+          }
+        })
+      }
     }
     catch {
-      case _ => new NemoTable(512, 64)
+      case _ => new NemoSheetModel(512, 64)
     }
-    NemoPreContext.nemoTable = table
-    table
   }
-} 
+}
 
-
-class NemoTable(val rows:Int, val cols:Int) extends Table {
-  val columnNames = NemoUtil.colNames(cols)
+class NemoSheetModel(rows:Int, cols:Int) extends AbstractTableModel {
   val data = Array.ofDim[NemoCell](rows,cols)
-  var rowHeader:NemoRowHeader = null
   val undoStack = Stack[(Int,Int,String)]() // row, col, formula - for now
   val redoStack = Stack[(Int,Int,String)]()
+  val columnNames = NemoUtil.colNames(cols)
+  val context = NemoSheetContext(NemoPreContext, this)
+  var view:Option[NemoSheetView] = None
+
+  // does the same thing as setValueAt, but without affecting undo/redo stack.
+  // used for file load
+  def setFormula(row:Int, col:Int, formula:String) = {
+    if (data(row)(col) == null) {
+      data(row)(col) = new NemoCell(row, col, this)
+    }
+    data(row)(col).formula = formula
+  }
 
   def value(row:Int, col:Int) = {
     if (data(row)(col) == null)
@@ -145,45 +145,12 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
       Some(data(row)(col))
   }
 
-  // does the same thing as model.setValueAt, but without affecting
-  // undo/redo stack.  used for file load
-  def setFormula(row:Int, col:Int, formula:String) = {
-    if (data(row)(col) == null) {
-      data(row)(col) = new NemoCell(row, col)
-    }
-    data(row)(col).formula = formula
-  }
-
-  private val _model = new AbstractTableModel {
-    override def getColumnName(col: Int) = columnNames(col)
-    def getRowCount = data.length
-    def getColumnCount = columnNames.length
-    def getValueAt(row:Int, col:Int) = value(row, col).getOrElse("")
-    override def isCellEditable(row:Int, col:Int) = true
-    override def setValueAt(value:Any, row:Int, col:Int) {
-      if (data(row)(col) == null) {
-        data(row)(col) = new NemoCell(row, col)
-      }
-      undoStack.push((row, col, data(row)(col).formula))
-      redoStack.clear
-      data(row)(col).formula = value.toString
-      cellUpdated(row, col)
-    }
-
-    def cellUpdated(row:Int, col:Int) = {
-      fireTableCellUpdated(row, col)
-      repaint
-    }
-  }
-
-  model = _model
-
   def undo = {
     if (undoStack.length > 0) {
       val (row, col, formula) = undoStack.pop
       redoStack.push((row, col, data(row)(col).formula))
       data(row)(col).formula = formula
-      _model.cellUpdated(row, col)
+      cellUpdated(row, col)
     }
   }
 
@@ -192,30 +159,16 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
       val (row, col, formula) = redoStack.pop
       undoStack.push((row, col, data(row)(col).formula))
       data(row)(col).formula = formula
-      _model.cellUpdated(row, col)
+      cellUpdated(row, col)
     }
   }
 
-  peer.setDefaultRenderer(classOf[AnyRef], new FormulaRenderer)
-  selection.elementMode = Table.ElementMode.Cell
-  autoResizeMode = Table.AutoResizeMode.Off
-  peer.getTableHeader.setReorderingAllowed(false)
-
-  def setRowHeight(row:Int, newHeight:Int) = {
-    peer.setRowHeight(row, newHeight)
-    rowHeader.peer.setRowHeight(row,newHeight)
-  }
-
-  override def updateCell(row:Int, col:Int) = {
-    model.asInstanceOf[AbstractTableModel].fireTableCellUpdated(row, col)
-  }
-    
   def apply(ref:String):Option[NemoCell] = {
     NemoUtil.colRowNumbers(ref) match {
       case Some((col, row)) => {
-        if (col <= peer.getColumnCount && row <= rowCount) {
+        if (col <= getColumnCount && row <= getRowCount) {
           if (data(row-1)(col-1) == null)
-            data(row-1)(col-1) = new NemoCell(row-1, col-1)
+            data(row-1)(col-1) = new NemoCell(row-1, col-1, this)
           value(row-1,col-1)
         }
         else
@@ -233,4 +186,45 @@ class NemoTable(val rows:Int, val cols:Int) extends Table {
     }
     </nemotable>
   }
+
+  override def getColumnName(col: Int) = columnNames(col)
+  def getRowCount = data.length
+  def getColumnCount = columnNames.length
+  def getValueAt(row:Int, col:Int) = value(row, col).getOrElse("")
+  override def isCellEditable(row:Int, col:Int) = true
+  override def setValueAt(value:Any, row:Int, col:Int) {
+    if (data(row)(col) == null) {
+      data(row)(col) = new NemoCell(row, col, this)
+    }
+    undoStack.push((row, col, data(row)(col).formula))
+    redoStack.clear
+    data(row)(col).formula = value.toString
+    cellUpdated(row, col)
+  }
+  
+  def cellUpdated(row:Int, col:Int) = {
+    fireTableCellUpdated(row, col)
+    view.map { _.repaint }
+  }
+}
+
+
+case class NemoSheetView(val sheetModel:NemoSheetModel) extends Table {
+  var rowHeader:NemoRowHeader = null
+  sheetModel.view = Some(this)
+  model = sheetModel
+  peer.setDefaultRenderer(classOf[AnyRef], new FormulaRenderer)
+  selection.elementMode = Table.ElementMode.Cell
+  autoResizeMode = Table.AutoResizeMode.Off
+  peer.getTableHeader.setReorderingAllowed(false)
+
+  def setRowHeight(row:Int, newHeight:Int) = {
+    peer.setRowHeight(row, newHeight)
+    rowHeader.peer.setRowHeight(row,newHeight)
+  }
+
+  override def updateCell(row:Int, col:Int) = {
+    model.asInstanceOf[AbstractTableModel].fireTableCellUpdated(row, col)
+  }
+    
 }
