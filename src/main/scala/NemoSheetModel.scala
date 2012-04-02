@@ -7,6 +7,7 @@ import scala.xml.XML
 import scala.xml.Utility
 import scala.collection.mutable.StringBuilder
 import java.io.File
+import scala.io.Source
 
 object NemoUtil {
   var defaultRowHeight = 16
@@ -87,12 +88,21 @@ object NemoSheetModel {
 }
 
 class NemoSheetModel(rows:Int, cols:Int) extends AbstractTableModel {
+  var standardLib = Source.fromURL(getClass.getResource("/standard.ns")).mkString
+  var customScript = ""
+  private var contextCache = NemoSheetContext(NemoPreContext(standardLib), this)
   val data = Array.ofDim[NemoCell](rows,cols)
   val undoStack = Stack[(Int,Int,String)]() // row, col, formula - for now
   val redoStack = Stack[(Int,Int,String)]()
   val columnNames = NemoUtil.colNames(cols)
-  val context = NemoSheetContext(NemoPreContext, this)
+  def context = contextCache
   var view:Option[NemoSheetView] = None
+
+  def reloadContext = {
+    val preContext = NemoPreContext(standardLib)
+    preContext.loadScript(customScript)
+    contextCache = NemoSheetContext(preContext, this)
+  }
 
   // does the same thing as setValueAt, but without affecting undo/redo stack.
   // used for file load

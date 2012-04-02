@@ -197,6 +197,10 @@ object NemoParser extends StandardTokenParsers {
   def parseSourceFile(f:BufferedSource) = {
     phrase(stmtList)(new lexical.Scanner(StreamReader(f.bufferedReader)))
   }
+
+  def parseSourceFile(str:String) = {
+    phrase(stmtList)(new lexical.Scanner(str))
+  }
 }
 
 object ExprLexical extends StdLexical {

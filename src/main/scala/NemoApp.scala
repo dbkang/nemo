@@ -63,7 +63,8 @@ class NemoContainer extends BoxPanel(Orientation.Vertical) {
 
     contents += Button("Script Editor") {
       val editor = new ScriptEditorWindow(Seq("Standard Library", "Your Nemoscript"),
-                                          Seq(NemoPreContext.standardLib.mkString, ""))
+                                          Seq(nemo.sheetModel.standardLib, nemo.sheetModel.customScript),
+                                          nemo.sheetModel)
       editor.open
     }
     minimumSize = preferredSize

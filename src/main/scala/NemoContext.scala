@@ -2,7 +2,6 @@ import scala.collection.mutable.Map
 import scala.collection.immutable.PagedSeq
 import javax.imageio.ImageIO
 import java.net.URL
-import scala.io.Source
 
 // Context/scope object
 abstract class NemoContext {
@@ -19,16 +18,23 @@ trait MutableContext extends NemoContext {
 
 // this is the base context/scope that define cell references, loads
 // primitives and standard library
-case object NemoPreContext extends NemoContext with MutableContext {
+case class NemoPreContext(standardLib:String) extends NemoContext with MutableContext {
+
   def addPrimitive(name:String, function:NemoList=>Option[NemoValue]) = {
     bindings += ((name, NemoPrimitive(name, function)))
   }
-  def standardLib = Source.fromURL(getClass.getResource("/standard.ns"))
+
+  //def standardLib = Source.fromURL(getClass.getResource("/standard.ns")).mkString
+  def loadScript(script:String) = {
+    NemoParser.parseSourceFile(script).map {
+      l => l.foreach { _.eval(this) }
+    }
+  }
 
   def load = {
     bindings.clear
 
-    bindings += (("nil", NemoList.nil))
+    add("nil", NemoList.nil)
     
     addPrimitive("url", args => {
       args.headOption.map(v => {
@@ -98,9 +104,7 @@ case object NemoPreContext extends NemoContext with MutableContext {
       args(0).map { v => NemoString(v.valueType) }
     })
 
-    NemoParser.parseSourceFile(standardLib).map {
-      l => l.foreach { _.eval(this) }
-    }
+    loadScript(standardLib)
   }
 
   load
@@ -112,6 +116,6 @@ case class NemoSheetContext(precedingContext:NemoContext, sheetModel:NemoSheetMo
   def apply(name:String) = sheetModel(name).flatMap(_.value).orElse(precedingContext(name))
 }
 
-case class NormalContext(precedingContext:NemoContext) extends NemoContext with MutableContext{
+case class NormalContext(precedingContext:NemoContext) extends NemoContext with MutableContext {
   def apply(name:String) = bindings.get(name).orElse(precedingContext(name))
 }

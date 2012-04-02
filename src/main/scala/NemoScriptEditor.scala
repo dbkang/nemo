@@ -3,10 +3,22 @@ import java.awt.Dimension
 import scala.swing.event.ListSelectionChanged
 import scala.collection.mutable.ArrayBuffer
 
-class NemoScriptEditor(names:Seq[String], scripts:Seq[String]) extends GridBagPanel {
+class NemoScriptEditor(names:Seq[String], scripts:Seq[String], sheetModel:NemoSheetModel) extends GridBagPanel {
   var selectionIndex = 0
   val saved = scripts.toBuffer
-  def buffer(number:Int) = if (selectionIndex == 0) editor.text else saved(number)
+  def buffer(number:Int) = if (selectionIndex == number) editor.text else saved(number)
+  def closeOperation = {
+    sheetModel.standardLib = buffer(0)
+    sheetModel.customScript = buffer(1)
+  }
+
+  val toolbar = new FlowPanel {
+    contents += Button("Apply Changes") {
+      closeOperation
+      sheetModel.reloadContext
+    }
+  }
+      
   val navigationPanel = new ListView(names){
     preferredSize = new Dimension(300,600)
     selectIndices(selectionIndex)    
@@ -18,19 +30,26 @@ class NemoScriptEditor(names:Seq[String], scripts:Seq[String]) extends GridBagPa
   val consolePanel = new Label("Console") {
     preferredSize = new Dimension(600,150)
   }
-  val navigationConstraints = new Constraints {
+
+  val toolbarConstraints = new Constraints {
     gridx = 0
     gridy = 0
+    gridwidth = 2
+  }
+  val navigationConstraints = new Constraints {
+    gridx = 0
+    gridy = 1
     gridheight = 2
   }
   val editorConstraints = new Constraints {
     gridx = 1
-    gridy = 0
+    gridy = 1
   }
   val consoleConstraints = new Constraints {
     gridx = 1
-    gridy = 1
+    gridy = 2
   }
+  add(toolbar, toolbarConstraints)
   add(navigationPanel, navigationConstraints)
   add(editorPane, editorConstraints)
   add(consolePanel, consoleConstraints)
@@ -47,7 +66,9 @@ class NemoScriptEditor(names:Seq[String], scripts:Seq[String]) extends GridBagPa
 }
 
 
-class ScriptEditorWindow(names:Seq[String], scripts:Seq[String]) extends Frame {
-  contents = new ScrollPane(new NemoScriptEditor(names, scripts))
+class ScriptEditorWindow(names:Seq[String], scripts:Seq[String], sheetModel:NemoSheetModel) extends Frame {
+  val editor = new NemoScriptEditor(names, scripts, sheetModel)
+  override def closeOperation = editor.closeOperation
+  contents = new ScrollPane(editor)
   centerOnScreen
 }
