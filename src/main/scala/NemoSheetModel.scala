@@ -67,24 +67,26 @@ object NemoSheetModel {
   def apply(rows:Int, cols:Int) = new NemoSheetModel(rows, cols)
 
   def apply(xml:NodeSeq) = {
-    val attribs = xml(0).attributes
-    try {
-      val rows = attribs("rows")(0).text.toInt
-      val cols = attribs("cols")(0).text.toInt
-      new NemoSheetModel(rows, cols) {
-        xml(0).child.foreach(cell => {
-          if (cell.label == "cell") {
+    xml.filter { n => n.label == "nemotable" || n.label == "nemosheet" } match {
+      case NodeSeq.Empty => new NemoSheetModel(512, 64)
+      case ns => {
+        val rows = ns.head.attributes("rows")(0).text.toInt
+        val cols = ns.head.attributes("cols")(0).text.toInt
+        val sheetModel = new NemoSheetModel(rows, cols) {
+          ns.head.child.filter(_.label == "cell").foreach(cell => {
             val row = cell.attributes("row")(0).text.toInt
             val col = cell.attributes("col")(0).text.toInt
-            setFormula(row, col, cell.attributes("formula")(0).text)
-          }
-        })
+            setFormula(row, col, cell.attributes("formula")(0).text)          
+          })
+          ns.head.child.filter(_.label == "nemoscript").foreach(script => {
+            customScript = script.text
+            reloadContext
+          })
+        }
+        sheetModel
       }
     }
-    catch {
-      case _ => new NemoSheetModel(512, 64)
-    }
-  }
+  }              
 }
 
 class NemoSheetModel(rows:Int, cols:Int) extends AbstractTableModel {
@@ -154,12 +156,13 @@ class NemoSheetModel(rows:Int, cols:Int) extends AbstractTableModel {
   }
 
   def toNodeSeq = {
-    <nemotable rows={rows.toString} cols={cols.toString}> {
+    <nemosheet rows={rows.toString} cols={cols.toString}> {
       for (i <- 0 until rows;
            j <- 0 until cols if !value(i,j).isEmpty)
         yield value(i,j).get.toNodeSeq
     }
-    </nemotable>
+      <nemoscript>{customScript}</nemoscript>    
+    </nemosheet>
   }
 
   override def getColumnName(col: Int) = columnNames(col)
