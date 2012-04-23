@@ -76,7 +76,8 @@ object NemoSheetModel {
           ns.head.child.filter(_.label == "cell").foreach(cell => {
             val row = cell.attributes("row")(0).text.toInt
             val col = cell.attributes("col")(0).text.toInt
-            setFormula(row, col, cell.attributes("formula")(0).text)          
+            setFormula(row, col, cell.child.text)
+            cell.attribute("formula").map { attr => setFormula(row, col, attr(0).text) }
           })
           ns.head.child.filter(_.label == "nemoscript").foreach(script => {
             customScript = script.text

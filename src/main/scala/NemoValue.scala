@@ -2,6 +2,7 @@ import java.awt.image.BufferedImage
 import java.awt.Image
 import java.awt.Rectangle
 import java.awt.Color
+import scala.xml.NodeSeq
 
 // represents values stored in each cell
 trait NemoValue {
@@ -20,6 +21,7 @@ trait NemoValue {
   def toDouble = toDoubleOption.get
   def toBoolean:Boolean = true
   def toImageOption:Option[BufferedImage] = None
+  def toXML:NodeSeq = <nemovalue>{value.toString}</nemovalue>
 }
 
 
@@ -132,7 +134,7 @@ case class NemoSpecialForm(val value:(NemoContext,EList)=>Option[NemoValue]) ext
 }
 
 trait NemoList extends NemoValue {
-  def length = 0
+  //def length = 0
   def toSeqOption:Option[Seq[NemoValue]]
   def headOption:Option[NemoValue] = None
   def tailOption:Option[NemoValue] = None
@@ -148,7 +150,6 @@ case object NemoUnit extends NemoList {
   def apply(idx:Int) = None
   override def toBoolean = false
 }
-
 
 case class NemoBoolean(val value:Boolean) extends NemoValue {
   def valueType = "Boolean"
@@ -178,4 +179,9 @@ case class NemoCons(var head: NemoValue, var tail:NemoValue) extends NemoList {
     case (x, y:NemoCons) => y(x - 1)
     case _ => None
   }
+}
+
+case class NemoXML(val value:NodeSeq) extends NemoValue {
+  def valueType = "XML"
+  override def toXML = value
 }

@@ -2,6 +2,7 @@ import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import scala.util.parsing.combinator.lexical.StdLexical
 import scala.io.BufferedSource
 import scala.util.parsing.input.StreamReader
+import scala.xml.{NodeSeq, XML}
 
 sealed abstract class Expr {
   def eval(c: NemoContext):Option[NemoValue]
@@ -189,10 +190,10 @@ object NemoParser extends StandardTokenParsers {
     case pl ~ sb => EFun(pl, sb)
   }
 
-  def apply(str:String) = {
+  //def apply(str:String) = {
     //println("Parsing " + str)
-    phrase(expr)(new lexical.Scanner(str))
-  }
+  //phrase(expr)(new lexical.Scanner(str))
+  //}
 
   def parseSourceFile(f:BufferedSource) = {
     phrase(stmtList)(new lexical.Scanner(StreamReader(f.bufferedReader)))
@@ -200,6 +201,16 @@ object NemoParser extends StandardTokenParsers {
 
   def parseSourceFile(str:String) = {
     phrase(stmtList)(new lexical.Scanner(str))
+  }
+
+  def apply(str:String) = {
+    val scanned = new lexical.Scanner(str)
+    try {
+      Success(ELit(NemoXML(XML.loadString(str))), scanned)
+    }
+    catch {
+      case _ => phrase(expr)(scanned)
+    }
   }
 }
 
