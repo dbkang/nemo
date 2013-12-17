@@ -184,4 +184,5 @@ case class NemoCons(var head: NemoValue, var tail:NemoValue) extends NemoList {
 case class NemoXML(val value:NodeSeq) extends NemoValue {
   def valueType = "XML"
   override def toXML = value
+  override def +(b:NemoValue) = NemoXML(value ++ b.toXML)
 }
